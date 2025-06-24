@@ -230,13 +230,14 @@ class Format {
 	}
 
 	/**
-	 * Get relative time with "ago" suffix for admin display
+	 * Get relative time with optional suffix for admin display
 	 *
-	 * @param string $date Any date format
+	 * @param string      $date   Any date format
+	 * @param string|null $suffix Optional suffix to append (default: translatable "ago")
 	 *
-	 * @return string Relative time with "ago" or empty string
+	 * @return string Relative time with suffix or empty string
 	 */
-	public static function admin_relative( string $date ): string {
+	public static function admin_relative( string $date, ?string $suffix = null ): string {
 		if ( Date::is_empty( $date ) ) {
 			return '';
 		}
@@ -247,8 +248,18 @@ class Format {
 		}
 
 		$utc_date = $parsed->utc()->format( 'Y-m-d H:i:s' );
+		if ( ! $utc_date ) {
+			return '';
+		}
 
-		return $utc_date ? self::human( $utc_date ) . ' ago' : '';
+		$relative = self::human( $utc_date );
+
+		// Use provided suffix or default translatable "ago"
+		if ( $suffix !== null ) {
+			return $relative . ( $suffix ? ' ' . $suffix : '' );
+		}
+
+		return $relative . ' ' . __( 'ago', 'arraypress' );
 	}
 
 	/**
@@ -260,7 +271,12 @@ class Format {
 	 * @return string Formatted date string
 	 */
 	public static function i18n( $date, string $format ): string {
-		$timestamp = Date::to_timestamp( $date );
+		if ( Date::is_empty( $date ) ) {
+			return '';
+		}
+
+		// Convert UTC to local timezone timestamp
+		$timestamp = Date::to_local_timestamp( $date );
 
 		return $timestamp ? date_i18n( $format, $timestamp ) : '';
 	}

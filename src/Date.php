@@ -325,4 +325,21 @@ class Date {
 		}
 	}
 
+	/**
+	 * Convert UTC date to local timezone timestamp
+	 *
+	 * @param string $utc_date UTC datetime
+	 *
+	 * @return int|null Local timezone timestamp or null on failure
+	 */
+	public static function to_local_timestamp( string $utc_date ): ?int {
+		try {
+			return Carbon::parse( $utc_date, 'UTC' )
+			             ->setTimezone( wp_timezone() )
+				->timestamp;
+		} catch ( Exception $e ) {
+			return null;
+		}
+	}
+
 }

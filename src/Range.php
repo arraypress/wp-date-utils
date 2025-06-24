@@ -22,14 +22,14 @@ use InvalidArgumentException;
 class Range {
 
 	/**
-	 * Get predefined date range labels
+	 * Get predefined date ranges with labels
 	 *
 	 * @param string $context        Optional context for filtering
 	 * @param bool   $include_future Whether to include future ranges
 	 *
 	 * @return array<string, string> List of range identifiers and labels
 	 */
-	private static function get_range_labels( string $context = 'default', bool $include_future = true ): array {
+	public static function get_ranges( string $context = 'default', bool $include_future = true ): array {
 		$ranges = [
 			'today'         => __( 'Today', 'arraypress' ),
 			'yesterday'     => __( 'Yesterday', 'arraypress' ),
@@ -71,15 +71,15 @@ class Range {
 	}
 
 	/**
-	 * Get list of available predefined ranges
+	 * Get range keys only
 	 *
 	 * @param string $context        Optional context for filtering
 	 * @param bool   $include_future Whether to include future ranges
 	 *
-	 * @return array<string, string> List of range identifiers and labels
+	 * @return array<string> List of range identifiers
 	 */
-	public static function get_ranges( string $context = 'default', bool $include_future = true ): array {
-		return self::get_range_labels( $context, $include_future );
+	public static function get_range_keys( string $context = 'default', bool $include_future = true ): array {
+		return array_keys( self::get_ranges( $context, $include_future ) );
 	}
 
 	/**
@@ -90,8 +90,8 @@ class Range {
 	 *
 	 * @return array Array of options with value/label structure
 	 */
-	public static function options( string $context = 'default', bool $include_future = true ): array {
-		$ranges  = self::get_range_labels( $context, $include_future );
+	public static function get_range_options( string $context = 'default', bool $include_future = true ): array {
+		$ranges  = self::get_ranges( $context, $include_future );
 		$options = [];
 
 		foreach ( $ranges as $value => $label ) {
@@ -105,6 +105,48 @@ class Range {
 	}
 
 	/**
+	 * Check if a range identifier is valid
+	 *
+	 * @param string $range          Range identifier to check
+	 * @param string $context        Optional context for filtering
+	 * @param bool   $include_future Whether to include future ranges in validation
+	 *
+	 * @return bool True if valid range
+	 */
+	public static function is_valid_range( string $range, string $context = 'default', bool $include_future = true ): bool {
+		$valid_ranges = self::get_range_keys( $context, $include_future );
+
+		return in_array( $range, $valid_ranges, true );
+	}
+
+	/**
+	 * Get weekday options for dropdowns and business day configuration
+	 *
+	 * @param string $context Optional context for filtering
+	 *
+	 * @return array Weekday options with value/label structure
+	 */
+	public static function get_weekday_options( string $context = 'default' ): array {
+		$weekdays = [
+			[ 'value' => '1', 'label' => __( 'Monday', 'arraypress' ) ],
+			[ 'value' => '2', 'label' => __( 'Tuesday', 'arraypress' ) ],
+			[ 'value' => '3', 'label' => __( 'Wednesday', 'arraypress' ) ],
+			[ 'value' => '4', 'label' => __( 'Thursday', 'arraypress' ) ],
+			[ 'value' => '5', 'label' => __( 'Friday', 'arraypress' ) ],
+			[ 'value' => '6', 'label' => __( 'Saturday', 'arraypress' ) ],
+			[ 'value' => '7', 'label' => __( 'Sunday', 'arraypress' ) ],
+		];
+
+		/**
+		 * Filter the weekday options
+		 *
+		 * @param array  $weekdays Array of weekday options
+		 * @param string $context  The context in which weekdays are being used
+		 */
+		return apply_filters( 'arraypress_weekday_options', $weekdays, $context );
+	}
+
+	/**
 	 * Get a predefined date range
 	 *
 	 * @param string $range   Range identifier
@@ -115,9 +157,8 @@ class Range {
 	 * @throws InvalidArgumentException If range is invalid
 	 */
 	public static function get( string $range, string $format = 'Y-m-d H:i:s', string $context = 'default' ): array {
-		$ranges = self::get_range_labels( $context, true ); // Include all ranges for validation
-
-		if ( ! isset( $ranges[ $range ] ) ) {
+		// Validate range exists
+		if ( ! self::is_valid_range( $range, $context, true ) ) {
 			throw new InvalidArgumentException( "Invalid range: {$range}" );
 		}
 

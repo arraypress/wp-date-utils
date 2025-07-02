@@ -232,12 +232,13 @@ public function column_modified( array $item ): string {
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-Licensed under the GPL-2.0+ License. See LICENSE file for details.
+This project is licensed under the GPL-2.0-or-later License.
 
 ## Support
 
-For support, please use the [issue tracker](https://github.com/arraypress/wp-date-utils/issues).
+- [Documentation](https://github.com/arraypress/wp-date-utils)
+- [Issue Tracker](https://github.com/arraypress/wp-date-utils/issues)

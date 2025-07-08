@@ -83,6 +83,39 @@ class Timestamp {
 	}
 
 	/**
+	 * Convert any time unit to seconds
+	 *
+	 * @param int    $amount Amount of units
+	 * @param string $unit   Unit type (second, minute, hour, day, week, month, year)
+	 *
+	 * @return int Number of seconds
+	 */
+	public static function from_unit( int $amount, string $unit ): int {
+		switch ( strtolower( $unit ) ) {
+			case 'second':
+			case 'seconds':
+				return $amount;
+			case 'minute':
+			case 'minutes':
+				return $amount * 60;
+			case 'hour':
+			case 'hours':
+				return $amount * 3600;
+			case 'week':
+			case 'weeks':
+				return $amount * 604800;
+			case 'month':
+			case 'months':
+				return $amount * 2629746; // Average month (30.44 days)
+			case 'year':
+			case 'years':
+				return $amount * 31556952; // Average year (365.25 days)
+			default:
+				return $amount * 86400; // Default to days
+		}
+	}
+
+	/**
 	 * Convert seconds to minutes
 	 *
 	 * @param int $seconds Number of seconds

@@ -178,4 +178,71 @@ class Query {
 		return $args;
 	}
 
+	/**
+	 * Create date query for records within last X minutes.
+	 *
+	 * @param int    $minutes Number of minutes back to look.
+	 * @param string $column  Optional. Column name.
+	 *
+	 * @return array Generic date query array.
+	 */
+	public static function since_minutes( int $minutes, string $column = 'date_created' ): array {
+		if ( $minutes <= 0 ) {
+			return [];
+		}
+
+		return [
+			[
+				'column' => $column,
+				'after'  => gmdate( 'Y-m-d H:i:s', strtotime( "-{$minutes} minutes" ) )
+			]
+		];
+	}
+
+	/**
+	 * Create date query for records since a time period ago.
+	 *
+	 * @param string $time_string Time string (e.g., '1 hour', '30 minutes', '2 days').
+	 * @param string $column      Optional. Column name.
+	 *
+	 * @return array Generic date query array.
+	 */
+	public static function since( string $time_string, string $column = 'date_created' ): array {
+		$timestamp = strtotime( "-{$time_string}" );
+		if ( false === $timestamp ) {
+			return [];
+		}
+
+		return [
+			[
+				'column' => $column,
+				'after'  => gmdate( 'Y-m-d H:i:s', $timestamp )
+			]
+		];
+	}
+
+	/**
+	 * Create date range query.
+	 *
+	 * @param string $start_utc Start UTC datetime.
+	 * @param string $end_utc   End UTC datetime.
+	 * @param string $column    Optional. Column name.
+	 *
+	 * @return array Generic date query array.
+	 */
+	public static function between( string $start_utc, string $end_utc, string $column = 'date_created' ): array {
+		return [
+			'relation' => 'AND',
+			'column'   => $column,
+			[
+				'after'     => $start_utc,
+				'inclusive' => true,
+			],
+			[
+				'before'    => $end_utc,
+				'inclusive' => true,
+			]
+		];
+	}
+
 }

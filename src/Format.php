@@ -281,4 +281,55 @@ class Format {
 		return $timestamp ? date_i18n( $format, $timestamp ) : '';
 	}
 
+	/**
+	 * Format hours as human duration.
+	 *
+	 * @param int $hours Number of hours.
+	 *
+	 * @return string Formatted duration (e.g., "2 days", "23 hours").
+	 */
+	public static function hours_to_duration( int $hours ): string {
+		if ( $hours <= 0 ) {
+			return '';
+		}
+
+		if ( $hours < 24 ) {
+			return $hours === 1 ? '1 hour' : "{$hours} hours";
+		}
+
+		$days = (int) floor( $hours / 24 ); // Cast to int
+		$remaining = $hours % 24;
+
+		if ( $remaining === 0 ) {
+			return $days === 1 ? '1 day' : "{$days} days"; // Now works correctly
+		}
+
+		return "{$days} day and {$remaining} hour" . ( $remaining > 1 ? 's' : '' );
+	}
+
+	/**
+	 * Convert seconds to human-readable format.
+	 *
+	 * @param int $seconds Number of seconds.
+	 *
+	 * @return string Formatted duration.
+	 */
+	public static function seconds_to_duration( int $seconds ): string {
+		if ( $seconds <= 0 ) {
+			return '';
+		}
+
+		$hours = (int) floor( $seconds / 3600 ); // Cast to int
+		if ( $hours > 0 ) {
+			return self::hours_to_duration( $hours ); // Now passes int
+		}
+
+		$minutes = (int) floor( $seconds / 60 ); // Cast to int for consistency
+		if ( $minutes > 0 ) {
+			return $minutes === 1 ? '1 minute' : "{$minutes} minutes";
+		}
+
+		return $seconds === 1 ? '1 second' : "{$seconds} seconds";
+	}
+
 }

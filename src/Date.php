@@ -342,4 +342,46 @@ class Date {
 		}
 	}
 
+	/**
+	 * Simple expiration check with optional grace period.
+	 *
+	 * @param string   $expiry_utc  UTC expiry datetime.
+	 * @param int|null $grace_hours Optional grace period in hours.
+	 *
+	 * @return bool True if expired beyond grace period.
+	 */
+	public static function is_expired( string $expiry_utc, ?int $grace_hours = null ): bool {
+		$expiry_timestamp = strtotime( $expiry_utc );
+		if ( false === $expiry_timestamp ) {
+			return true;
+		}
+
+		if ( $grace_hours && $grace_hours > 0 ) {
+			$expiry_timestamp += ( $grace_hours * 3600 ); // Convert hours to seconds
+		}
+
+		return time() > $expiry_timestamp;
+	}
+
+	/**
+	 * Calculate expiration date from duration.
+	 *
+	 * @param int         $duration_seconds Duration in seconds.
+	 * @param string|null $from_date        Optional. UTC date to calculate from.
+	 *
+	 * @return string|null UTC datetime string or null if invalid.
+	 */
+	public static function calculate_expiration( int $duration_seconds, ?string $from_date = null ): ?string {
+		if ( $duration_seconds <= 0 ) {
+			return null;
+		}
+
+		$from_timestamp = empty( $from_date ) ? time() : strtotime( $from_date );
+		if ( false === $from_timestamp ) {
+			return null;
+		}
+
+		return gmdate( 'Y-m-d H:i:s', $from_timestamp + $duration_seconds );
+	}
+
 }

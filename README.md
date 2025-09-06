@@ -20,13 +20,13 @@ Lightweight date utilities for WordPress focusing on UTC storage and local displ
 ## Installation
 
 ```bash
-composer require arraypress/wp-dates
+composer require arraypress/wp-date-utils
 ```
 
 ## Basic Usage
 
 ```php
-use ArrayPress\Dates\Dates;
+use ArrayPress\DateUtils\Dates;
 
 // Current times
 $utc_now   = Dates::now_utc();        // For database storage

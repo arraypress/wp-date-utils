@@ -1,7 +1,7 @@
 {
   "name": "arraypress/wp-date-utils",
   "version": "1.0.0",
-  "description": "A comprehensive PHP library for WordPress date/time operations with UTC-first approach, timezone handling, ranges, subscriptions, and business logic.",
+  "description": "Lightweight WordPress date utilities with UTC storage, local display, and zero dependencies. Handles date ranges, business logic, subscriptions, and formatting.",
   "type": "library",
   "license": "GPL-2.0-or-later",
   "homepage": "https://github.com/arraypress/wp-date-utils",
@@ -12,8 +12,7 @@
     }
   ],
   "require": {
-    "php": ">=7.4",
-    "nesbot/carbon": "^2.73"
+    "php": ">=7.4"
   },
   "autoload": {
     "psr-4": {
@@ -38,11 +37,14 @@
     "datetime",
     "timezone",
     "utc",
-    "carbon",
+    "lightweight",
+    "zero-dependencies",
     "date-range",
     "subscription",
     "billing",
     "business-days",
+    "validation",
+    "formatting",
     "arraypress"
   ]
 }

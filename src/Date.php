@@ -1,387 +1,930 @@
 <?php
 /**
- * Core Date Utility Class - CLEANED UP
+ * WordPress Simple Date Utils
  *
- * Essential date/time handling with UTC awareness and WordPress integration.
- * Focused on the most commonly needed operations.
+ * Lightweight date utilities for WordPress without external dependencies.
+ * Focused on UTC storage and local display conversion.
  *
- * @package     ArrayPress\Utils
+ * @package     ArrayPress\DateUtils
  * @copyright   Copyright (c) 2025, ArrayPress Limited
- * @license     GPL-2.0-or-later
- * @since       1.0.0
+ * @license     GPL2+
+ * @version     1.0.0
  * @author      David Sherlock
  */
 
-declare( strict_types=1 );
-
 namespace ArrayPress\DateUtils;
 
-use Carbon\Carbon;
+// Exit if accessed directly
+use DateTime;
+use DateTimeZone;
 use Exception;
 
-class Date {
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Simple Date utilities for WordPress
+ *
+ * @since 1.0.0
+ */
+class Dates {
+
+	/* ========================================================================
+	 * CORE DATE OPERATIONS
+	 * ======================================================================== */
 
 	/**
-	 * Parse date string safely
+	 * Get current UTC datetime
 	 *
-	 * @param string      $date     Date string to parse
-	 * @param string|null $timezone Timezone (defaults to WordPress timezone)
+	 * @param string $format Format string (default MySQL format)
 	 *
-	 * @return Carbon|null Carbon instance or null on failure
-	 */
-	public static function parse( string $date, ?string $timezone = null ): ?Carbon {
-		try {
-			$tz = $timezone ?: wp_timezone();
-
-			return Carbon::parse( $date, $tz );
-		} catch ( Exception $e ) {
-			return null;
-		}
-	}
-
-	/**
-	 * Get current UTC time
+	 * @return string UTC datetime
+	 * @since 1.0.0
 	 *
-	 * @param string $format Optional datetime format
-	 *
-	 * @return string Formatted UTC datetime
 	 */
 	public static function now_utc( string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::now( 'UTC' )->format( $format );
+		return gmdate( $format );
 	}
 
 	/**
-	 * Get current local time using WordPress timezone
+	 * Get current local datetime
 	 *
-	 * @param string $format Optional datetime format
+	 * @param string $format Format string (default MySQL format)
 	 *
-	 * @return string Formatted local datetime
+	 * @return string Local datetime
+	 * @since 1.0.0
+	 *
 	 */
 	public static function now_local( string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::now( wp_timezone() )->format( $format );
+		return current_time( $format );
 	}
 
 	/**
-	 * Convert local time to UTC (for database storage)
+	 * Convert local datetime to UTC for database storage
 	 *
-	 * @param string $local_time Local datetime in site's timezone
-	 * @param string $format     Optional datetime format
+	 * @param string $local_datetime Local datetime string
+	 * @param string $format         Output format
 	 *
-	 * @return string Formatted UTC datetime
+	 * @return string UTC datetime
+	 * @since 1.0.0
+	 *
 	 */
-	public static function to_utc( string $local_time, string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::parse( $local_time, wp_timezone() )
-		             ->setTimezone( 'UTC' )
-		             ->format( $format );
+	public static function to_utc( string $local_datetime, string $format = 'Y-m-d H:i:s' ): string {
+		return get_gmt_from_date( $local_datetime, $format );
 	}
 
 	/**
-	 * Convert UTC to local time (for display)
+	 * Convert UTC datetime to local for display
 	 *
-	 * @param string $utc_time UTC datetime
-	 * @param string $format   Optional datetime format
+	 * @param string $utc_datetime UTC datetime from database
+	 * @param string $format       Output format (empty = WP settings)
 	 *
-	 * @return string Formatted local datetime
+	 * @return string Local datetime
+	 * @since 1.0.0
+	 *
 	 */
-	public static function to_local( string $utc_time, string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::parse( $utc_time, 'UTC' )
-		             ->setTimezone( wp_timezone() )
-		             ->format( $format );
+	public static function to_local( string $utc_datetime, string $format = '' ): string {
+		if ( self::is_zero( $utc_datetime ) ) {
+			return '—';
+		}
+
+		if ( empty( $format ) ) {
+			$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		}
+
+		return get_date_from_gmt( $utc_datetime, $format );
 	}
+
+	/**
+	 * Convert Unix timestamp to MySQL datetime
+	 *
+	 * @param int $timestamp Unix timestamp
+	 *
+	 * @return string MySQL datetime in UTC
+	 * @since 1.0.0
+	 *
+	 */
+	public static function timestamp_to_mysql( int $timestamp ): string {
+		return gmdate( 'Y-m-d H:i:s', $timestamp );
+	}
+
+	/**
+	 * Convert MySQL datetime to Unix timestamp
+	 *
+	 * @param string $datetime MySQL datetime
+	 *
+	 * @return int Unix timestamp
+	 * @since 1.0.0
+	 *
+	 */
+	public static function to_timestamp( string $datetime ): int {
+		return strtotime( $datetime . ' UTC' );
+	}
+
+	/* ========================================================================
+	 * DATE ARITHMETIC
+	 * ======================================================================== */
 
 	/**
 	 * Add time to a UTC date
 	 *
-	 * @param string $utc_date UTC datetime
-	 * @param int    $amount   Amount to add
-	 * @param string $unit     Unit (years, months, weeks, days, hours, minutes, seconds)
-	 * @param string $format   Optional datetime format
+	 * @param string $utc_datetime UTC datetime
+	 * @param int    $amount       Amount to add
+	 * @param string $unit         Unit: days, hours, minutes, seconds, weeks, months, years
 	 *
-	 * @return string New UTC datetime
+	 * @return string Modified UTC datetime
+	 * @throws Exception
+	 * @since 1.0.0
+	 *
 	 */
-	public static function add( string $utc_date, int $amount, string $unit, string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::parse( $utc_date, 'UTC' )
-		             ->add( $unit, $amount )
-		             ->format( $format );
+	public static function add( string $utc_datetime, int $amount, string $unit = 'days' ): string {
+		$timestamp = strtotime( $utc_datetime . ' UTC' );
+
+		switch ( $unit ) {
+			case 'seconds':
+				$timestamp += $amount;
+				break;
+			case 'minutes':
+				$timestamp += $amount * MINUTE_IN_SECONDS;
+				break;
+			case 'hours':
+				$timestamp += $amount * HOUR_IN_SECONDS;
+				break;
+			case 'days':
+				$timestamp += $amount * DAY_IN_SECONDS;
+				break;
+			case 'weeks':
+				$timestamp += $amount * WEEK_IN_SECONDS;
+				break;
+			case 'months':
+				return self::add_months( $utc_datetime, $amount );
+			case 'years':
+				return self::add_years( $utc_datetime, $amount );
+		}
+
+		return gmdate( 'Y-m-d H:i:s', $timestamp );
 	}
 
 	/**
 	 * Subtract time from a UTC date
 	 *
-	 * @param string $utc_date UTC datetime
-	 * @param int    $amount   Amount to subtract
-	 * @param string $unit     Unit (years, months, weeks, days, hours, minutes, seconds)
-	 * @param string $format   Optional datetime format
+	 * @param string $utc_datetime UTC datetime
+	 * @param int    $amount       Amount to subtract
+	 * @param string $unit         Unit: days, hours, minutes, seconds, weeks, months, years
 	 *
-	 * @return string New UTC datetime
+	 * @return string Modified UTC datetime
+	 * @since 1.0.0
+	 *
 	 */
-	public static function subtract( string $utc_date, int $amount, string $unit, string $format = 'Y-m-d H:i:s' ): string {
-		return Carbon::parse( $utc_date, 'UTC' )
-		             ->sub( $unit, $amount )
-		             ->format( $format );
+	public static function subtract( string $utc_datetime, int $amount, string $unit = 'days' ): string {
+		return self::add( $utc_datetime, - $amount, $unit );
+	}
+
+	/**
+	 * Add months to a UTC date (precise calculation)
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 * @param int    $months       Number of months to add
+	 *
+	 * @return string Modified UTC datetime
+	 * @since 1.0.0
+	 *
+	 */
+	public static function add_months( string $utc_datetime, int $months ): string {
+		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
+		$date->add( new \DateInterval( "P{$months}M" ) );
+
+		return $date->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Add years to a UTC date (precise calculation)
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 * @param int    $years        Number of years to add
+	 *
+	 * @return string Modified UTC datetime
+	 * @throws Exception
+	 * @since 1.0.0
+	 *
+	 */
+	public static function add_years( string $utc_datetime, int $years ): string {
+		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
+		$date->add( new \DateInterval( "P{$years}Y" ) );
+
+		return $date->format( 'Y-m-d H:i:s' );
 	}
 
 	/**
 	 * Get difference between two dates
 	 *
-	 * @param string $date1 First UTC datetime
-	 * @param string $date2 Second UTC datetime
-	 * @param string $unit  Unit (days, hours, minutes, etc.)
+	 * @param string $date1_utc First UTC datetime
+	 * @param string $date2_utc Second UTC datetime
+	 * @param string $unit      Unit to return: days, hours, minutes, seconds
 	 *
-	 * @return float Difference in specified unit
+	 * @return int Difference in specified unit
+	 * @since 1.0.0
+	 *
 	 */
-	public static function diff( string $date1, string $date2, string $unit = 'days' ): float {
-		$first  = Carbon::parse( $date1, 'UTC' );
-		$second = Carbon::parse( $date2, 'UTC' );
+	public static function diff( string $date1_utc, string $date2_utc, string $unit = 'days' ): int {
+		$timestamp1   = strtotime( $date1_utc . ' UTC' );
+		$timestamp2   = strtotime( $date2_utc . ' UTC' );
+		$diff_seconds = abs( $timestamp1 - $timestamp2 );
 
-		$method = 'diffIn' . ucfirst( $unit );
+		switch ( $unit ) {
+			case 'seconds':
+				return $diff_seconds;
+			case 'minutes':
+				return intval( $diff_seconds / MINUTE_IN_SECONDS );
+			case 'hours':
+				return intval( $diff_seconds / HOUR_IN_SECONDS );
+			case 'weeks':
+				return intval( $diff_seconds / WEEK_IN_SECONDS );
+			case 'months':
+				return intval( $diff_seconds / MONTH_IN_SECONDS );
+			case 'years':
+				return intval( $diff_seconds / YEAR_IN_SECONDS );
+			default:
+				return intval( $diff_seconds / DAY_IN_SECONDS );
+		}
+	}
 
-		return method_exists( $first, $method ) ? $first->$method( $second ) : 0;
+	/* ========================================================================
+	 * FORMATTING & DISPLAY
+	 * ======================================================================== */
+
+	/**
+	 * Format UTC date using WordPress settings with i18n
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 * @param string $type         Type: 'date', 'time', or 'datetime'
+	 *
+	 * @return string Formatted datetime
+	 * @since 1.0.0
+	 *
+	 */
+	public static function format( string $utc_datetime, string $type = 'datetime' ): string {
+		if ( self::is_zero( $utc_datetime ) ) {
+			return '—';
+		}
+
+		$timestamp = strtotime( $utc_datetime . ' UTC' );
+
+		switch ( $type ) {
+			case 'date':
+				$format = get_option( 'date_format' );
+				break;
+			case 'time':
+				$format = get_option( 'time_format' );
+				break;
+			default:
+				$format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		}
+
+		return wp_date( $format, $timestamp );
 	}
 
 	/**
-	 * Get age in years from birthdate
+	 * Get human-readable time difference
 	 *
-	 * @param string $birth_date_utc UTC birth datetime
+	 * @param string $utc_datetime UTC datetime
 	 *
-	 * @return int Age in years
+	 * @return string Human-readable difference
+	 * @since 1.0.0
+	 *
 	 */
-	public static function get_age( string $birth_date_utc ): int {
-		return Carbon::parse( $birth_date_utc, 'UTC' )->age;
+	public static function human_diff( string $utc_datetime ): string {
+		if ( self::is_zero( $utc_datetime ) ) {
+			return '—';
+		}
+
+		$timestamp = strtotime( $utc_datetime . ' UTC' );
+
+		return sprintf(
+		/* translators: %s: human time difference */
+			__( '%s ago', 'arraypress' ),
+			human_time_diff( $timestamp )
+		);
 	}
 
 	/**
-	 * Get age in days from birthdate
+	 * Format for admin display with relative time
 	 *
-	 * @param string $birth_date_utc UTC birth datetime
+	 * @param string $utc_datetime UTC datetime
 	 *
-	 * @return int Age in days
+	 * @return string HTML formatted date with relative time
+	 * @since 1.0.0
+	 *
 	 */
-	public static function get_age_in_days( string $birth_date_utc ): int {
-		return (int) Carbon::parse( $birth_date_utc, 'UTC' )->diffInDays( Carbon::now( 'UTC' ) );
+	public static function format_admin( string $utc_datetime ): string {
+		if ( self::is_zero( $utc_datetime ) ) {
+			return '—';
+		}
+
+		$formatted = self::format( $utc_datetime );
+		$relative  = self::human_diff( $utc_datetime );
+
+		return sprintf(
+			'%s<br><small class="description">%s</small>',
+			esc_html( $formatted ),
+			esc_html( $relative )
+		);
+	}
+
+	/* ========================================================================
+	 * VALIDATION & CHECKS
+	 * ======================================================================== */
+
+	/**
+	 * Check if date is zero/empty
+	 *
+	 * @param string|null $date Date value
+	 *
+	 * @return bool True if zero/empty
+	 * @since 1.0.0
+	 *
+	 */
+	public static function is_zero( ?string $date ): bool {
+		return empty( $date )
+		       || $date === '0000-00-00 00:00:00'
+		       || $date === '0000-00-00';
 	}
 
 	/**
-	 * Get next business day from given date
-	 *
-	 * @param string $utc_date      UTC datetime to start from
-	 * @param array  $business_days Business days (1=Mon, 7=Sun)
-	 * @param string $format        Optional datetime format
-	 *
-	 * @return string Next business day in UTC
-	 */
-	public static function next_business_day(
-		string $utc_date, array $business_days = [
-		1,
-		2,
-		3,
-		4,
-		5
-	], string $format = 'Y-m-d H:i:s'
-	): string {
-		$date = Carbon::parse( $utc_date, 'UTC' )->setTimezone( wp_timezone() );
-
-		do {
-			$date->addDay();
-			$dayOfWeek = $date->dayOfWeek === 0 ? 7 : $date->dayOfWeek; // Convert Sunday
-		} while ( ! in_array( $dayOfWeek, $business_days, true ) );
-
-		return $date->setTimezone( 'UTC' )->format( $format );
-	}
-
-	/**
-	 * Check if date is valid
+	 * Validate date string
 	 *
 	 * @param string $date Date string to validate
 	 *
-	 * @return bool True if valid
+	 * @return bool True if valid date
+	 * @since 1.0.0
+	 *
 	 */
 	public static function is_valid( string $date ): bool {
-		return self::parse( $date ) !== null;
+		return strtotime( $date ) !== false;
 	}
 
 	/**
-	 * Check if date is empty or zero
+	 * Check if date matches specific format
 	 *
-	 * @param string|null $date Date string
+	 * @param string $date   Date string to check
+	 * @param string $format Expected format (e.g., 'Y-m-d')
 	 *
-	 * @return bool True if empty
+	 * @return bool True if matches format
+	 * @since 1.0.0
+	 *
 	 */
-	public static function is_empty( ?string $date ): bool {
-		return empty( $date ) || $date === '0000-00-00 00:00:00' || ! self::is_valid( $date );
+	public static function is_format( string $date, string $format ): bool {
+		$d = DateTime::createFromFormat( $format, $date );
+
+		return $d && $d->format( $format ) === $date;
 	}
 
 	/**
-	 * Check if date is in future
+	 * Check if date has expired
 	 *
-	 * @param string $utc_date UTC datetime
+	 * @param string $utc_datetime UTC expiration datetime
+	 * @param int    $grace_hours  Optional grace period in hours
 	 *
-	 * @return bool True if date is in future
+	 * @return bool True if expired
+	 * @since 1.0.0
+	 *
 	 */
-	public static function is_future( string $utc_date ): bool {
-		return Carbon::parse( $utc_date, 'UTC' )->isFuture();
+	public static function is_expired( string $utc_datetime, int $grace_hours = 0 ): bool {
+		$expiry = strtotime( $utc_datetime . ' UTC' );
+
+		if ( $grace_hours > 0 ) {
+			$expiry += $grace_hours * HOUR_IN_SECONDS;
+		}
+
+		return time() > $expiry;
 	}
 
 	/**
-	 * Check if date is in past
+	 * Check if date is in the past
 	 *
-	 * @param string $utc_date UTC datetime
+	 * @param string $utc_datetime UTC datetime
 	 *
-	 * @return bool True if date is in past
+	 * @return bool True if past
+	 * @since 1.0.0
+	 *
 	 */
-	public static function is_past( string $utc_date ): bool {
-		return Carbon::parse( $utc_date, 'UTC' )->isPast();
+	public static function is_past( string $utc_datetime ): bool {
+		return strtotime( $utc_datetime . ' UTC' ) < time();
 	}
+
+	/**
+	 * Check if date is in the future
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 *
+	 * @return bool True if future
+	 * @since 1.0.0
+	 *
+	 */
+	public static function is_future( string $utc_datetime ): bool {
+		return strtotime( $utc_datetime . ' UTC' ) > time();
+	}
+
+	/**
+	 * Check if date is within range
+	 *
+	 * @param string $date_utc  UTC datetime to check
+	 * @param string $start_utc UTC start datetime
+	 * @param string $end_utc   UTC end datetime
+	 *
+	 * @return bool True if within range
+	 * @since 1.0.0
+	 *
+	 */
+	public static function in_range( string $date_utc, string $start_utc, string $end_utc ): bool {
+		$date  = strtotime( $date_utc . ' UTC' );
+		$start = strtotime( $start_utc . ' UTC' );
+		$end   = strtotime( $end_utc . ' UTC' );
+
+		return $date >= $start && $date <= $end;
+	}
+
+	/* ========================================================================
+	 * BUSINESS LOGIC
+	 * ======================================================================== */
 
 	/**
 	 * Check if date is a weekend
 	 *
-	 * @param string|null $utc_date UTC datetime (default: now)
+	 * @param string $utc_datetime UTC datetime
 	 *
-	 * @return bool True if weekend
+	 * @return bool True if weekend (Saturday or Sunday)
+	 * @since 1.0.0
+	 *
 	 */
-	public static function is_weekend( ?string $utc_date = null ): bool {
-		$date = $utc_date ? Carbon::parse( $utc_date, 'UTC' ) : Carbon::now( 'UTC' );
+	public static function is_weekend( string $utc_datetime ): bool {
+		$day = gmdate( 'N', strtotime( $utc_datetime . ' UTC' ) );
 
-		return $date->setTimezone( wp_timezone() )->isWeekend();
+		return in_array( $day, [ '6', '7' ] ); // Saturday, Sunday
 	}
 
 	/**
-	 * Check if date is a weekday
+	 * Check if date is a business day
 	 *
-	 * @param string|null $utc_date UTC datetime (default: now)
+	 * @param string $utc_datetime  UTC datetime
+	 * @param array  $business_days Business days (1=Mon, 7=Sun)
 	 *
-	 * @return bool True if weekday
+	 * @return bool True if business day
+	 * @since 1.0.0
+	 *
 	 */
-	public static function is_weekday( ?string $utc_date = null ): bool {
-		return ! self::is_weekend( $utc_date );
+	public static function is_business_day( string $utc_datetime, array $business_days = [ 1, 2, 3, 4, 5 ] ): bool {
+		$day = (int) gmdate( 'N', strtotime( $utc_datetime . ' UTC' ) );
+
+		return in_array( $day, $business_days );
 	}
 
 	/**
-	 * Get the weekday name
+	 * Get next business day
 	 *
-	 * @param string|null $utc_date UTC datetime (default: now)
+	 * @param string $utc_datetime  UTC datetime
+	 * @param array  $business_days Business days (1=Mon, 7=Sun)
 	 *
-	 * @return string Full weekday name
+	 * @return string Next business day in UTC
+	 * @since 1.0.0
+	 *
 	 */
-	public static function get_weekday( ?string $utc_date = null ): string {
-		$date = $utc_date ? Carbon::parse( $utc_date, 'UTC' ) : Carbon::now( 'UTC' );
+	public static function next_business_day( string $utc_datetime, array $business_days = [ 1, 2, 3, 4, 5 ] ): string {
+		$timestamp = strtotime( $utc_datetime . ' UTC' );
 
-		return $date->setTimezone( wp_timezone() )->format( 'l' );
+		do {
+			$timestamp += DAY_IN_SECONDS;
+			$day       = (int) gmdate( 'N', $timestamp );
+		} while ( ! in_array( $day, $business_days ) );
+
+		return gmdate( 'Y-m-d H:i:s', $timestamp );
 	}
 
 	/**
-	 * Get the month name
+	 * Calculate age in years from birth date
 	 *
-	 * @param string|null $utc_date UTC datetime (default: now)
+	 * @param string $birth_date_utc Birth date in UTC
 	 *
-	 * @return string Full month name
+	 * @return int Age in years
+	 * @throws Exception
+	 * @since 1.0.0
+	 *
 	 */
-	public static function get_month( ?string $utc_date = null ): string {
-		$date = $utc_date ? Carbon::parse( $utc_date, 'UTC' ) : Carbon::now( 'UTC' );
+	public static function get_age( string $birth_date_utc ): int {
+		$birth = new DateTime( $birth_date_utc, new DateTimeZone( 'UTC' ) );
+		$now   = new DateTime( 'now', new DateTimeZone( 'UTC' ) );
 
-		return $date->setTimezone( wp_timezone() )->format( 'F' );
+		return $birth->diff( $now )->y;
 	}
 
 	/**
-	 * Get the quarter
+	 * Check if age requirement is met
 	 *
-	 * @param string|null $utc_date UTC datetime (default: now)
+	 * @param string $birth_date_utc Birth date in UTC
+	 * @param int    $min_age        Minimum required age
 	 *
-	 * @return string Quarter (Q1, Q2, Q3, or Q4)
+	 * @return bool True if age requirement is met
+	 * @since 1.0.0
+	 *
 	 */
-	public static function get_quarter( ?string $utc_date = null ): string {
-		$date = $utc_date ? Carbon::parse( $utc_date, 'UTC' ) : Carbon::now( 'UTC' );
-
-		return 'Q' . $date->setTimezone( wp_timezone() )->quarter;
+	public static function meets_age_requirement( string $birth_date_utc, int $min_age ): bool {
+		return self::get_age( $birth_date_utc ) >= $min_age;
 	}
 
-	/**
-	 * Convert various date formats to timestamp
-	 *
-	 * @param mixed $date Date to convert (string, Carbon, timestamp)
-	 *
-	 * @return int|null Unix timestamp or null on failure
-	 */
-	public static function to_timestamp( $date ): ?int {
-		try {
-			if ( is_numeric( $date ) ) {
-				return (int) $date;
-			}
-
-			if ( $date instanceof Carbon ) {
-				return $date->timestamp;
-			}
-
-			if ( is_string( $date ) ) {
-				$parsed = self::parse( $date );
-
-				return $parsed ? $parsed->timestamp : null;
-			}
-
-			return null;
-		} catch ( Exception $e ) {
-			return null;
-		}
-	}
+	/* ========================================================================
+	 * DATE RANGES
+	 * ======================================================================== */
 
 	/**
-	 * Convert UTC date to local timezone timestamp
+	 * Get date ranges (predefined periods)
 	 *
-	 * @param string $utc_date UTC datetime
+	 * @param string $range          Range identifier
+	 * @param bool   $local_timezone If true, calculate in local timezone first then convert to UTC
 	 *
-	 * @return int|null Local timezone timestamp or null on failure
+	 * @return array{start: string, end: string} Start/end times in UTC
+	 * @since 1.0.0
+	 *
 	 */
-	public static function to_local_timestamp( string $utc_date ): ?int {
-		try {
-			return Carbon::parse( $utc_date, 'UTC' )
-			             ->setTimezone( wp_timezone() )
-				->timestamp;
-		} catch ( Exception $e ) {
-			return null;
-		}
-	}
-
-	/**
-	 * Simple expiration check with optional grace period.
-	 *
-	 * @param string   $expiry_utc  UTC expiry datetime.
-	 * @param int|null $grace_hours Optional grace period in hours.
-	 *
-	 * @return bool True if expired beyond grace period.
-	 */
-	public static function is_expired( string $expiry_utc, ?int $grace_hours = null ): bool {
-		$expiry_timestamp = strtotime( $expiry_utc );
-		if ( false === $expiry_timestamp ) {
-			return true;
+	public static function get_range( string $range, bool $local_timezone = true ): array {
+		if ( ! $local_timezone ) {
+			return self::get_range_utc( $range );
 		}
 
-		if ( $grace_hours && $grace_hours > 0 ) {
-			$expiry_timestamp += ( $grace_hours * 3600 ); // Convert hours to seconds
+		// Calculate in local timezone first (more intuitive for users)
+		$local_timestamp = current_time( 'timestamp' );
+
+		switch ( $range ) {
+			case 'today':
+				$start = current_time( 'Y-m-d 00:00:00' );
+				$end   = current_time( 'Y-m-d 23:59:59' );
+				break;
+
+			case 'yesterday':
+				$yesterday = date( 'Y-m-d', $local_timestamp - DAY_IN_SECONDS );
+				$start     = $yesterday . ' 00:00:00';
+				$end       = $yesterday . ' 23:59:59';
+				break;
+
+			case 'tomorrow':
+				$tomorrow = date( 'Y-m-d', $local_timestamp + DAY_IN_SECONDS );
+				$start    = $tomorrow . ' 00:00:00';
+				$end      = $tomorrow . ' 23:59:59';
+				break;
+
+			case 'this_week':
+				$week_start = strtotime( 'monday this week', $local_timestamp );
+				$week_end   = strtotime( 'sunday this week', $local_timestamp ) + 86399;
+				$start      = date( 'Y-m-d 00:00:00', $week_start );
+				$end        = date( 'Y-m-d 23:59:59', $week_end );
+				break;
+
+			case 'last_week':
+				$week_start = strtotime( 'monday last week', $local_timestamp );
+				$week_end   = strtotime( 'sunday last week', $local_timestamp ) + 86399;
+				$start      = date( 'Y-m-d 00:00:00', $week_start );
+				$end        = date( 'Y-m-d 23:59:59', $week_end );
+				break;
+
+			case 'next_week':
+				$week_start = strtotime( 'monday next week', $local_timestamp );
+				$week_end   = strtotime( 'sunday next week', $local_timestamp ) + 86399;
+				$start      = date( 'Y-m-d 00:00:00', $week_start );
+				$end        = date( 'Y-m-d 23:59:59', $week_end );
+				break;
+
+			case 'this_month':
+				$start = date( 'Y-m-01 00:00:00', $local_timestamp );
+				$end   = date( 'Y-m-t 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_month':
+				$first_day = strtotime( 'first day of last month', $local_timestamp );
+				$last_day  = strtotime( 'last day of last month', $local_timestamp );
+				$start     = date( 'Y-m-d 00:00:00', $first_day );
+				$end       = date( 'Y-m-d 23:59:59', $last_day );
+				break;
+
+			case 'next_month':
+				$first_day = strtotime( 'first day of next month', $local_timestamp );
+				$last_day  = strtotime( 'last day of next month', $local_timestamp );
+				$start     = date( 'Y-m-d 00:00:00', $first_day );
+				$end       = date( 'Y-m-d 23:59:59', $last_day );
+				break;
+
+			case 'this_quarter':
+				$month               = date( 'n', $local_timestamp );
+				$year                = date( 'Y', $local_timestamp );
+				$quarter_start_month = ceil( $month / 3 ) * 3 - 2;
+				$quarter_end_month   = $quarter_start_month + 2;
+				$start               = date( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
+				$end                 = date( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
+				break;
+
+			case 'last_quarter':
+				$month               = date( 'n', $local_timestamp );
+				$year                = date( 'Y', $local_timestamp );
+				$quarter_start_month = ceil( $month / 3 ) * 3 - 5;
+				if ( $quarter_start_month < 1 ) {
+					$quarter_start_month += 12;
+					$year --;
+				}
+				$quarter_end_month = $quarter_start_month + 2;
+				$start             = date( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
+				$end               = date( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
+				break;
+
+			case 'this_year':
+				$start = date( 'Y-01-01 00:00:00', $local_timestamp );
+				$end   = date( 'Y-12-31 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_year':
+				$year  = date( 'Y', $local_timestamp ) - 1;
+				$start = $year . '-01-01 00:00:00';
+				$end   = $year . '-12-31 23:59:59';
+				break;
+
+			case 'next_year':
+				$year  = date( 'Y', $local_timestamp ) + 1;
+				$start = $year . '-01-01 00:00:00';
+				$end   = $year . '-12-31 23:59:59';
+				break;
+
+			case 'last_7_days':
+			case 'last_week_rolling':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 6 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_30_days':
+			case 'last_month_rolling':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 29 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_60_days':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 59 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_90_days':
+			case 'last_3_months':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 89 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_180_days':
+			case 'last_6_months':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 179 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'last_365_days':
+			case 'last_year_rolling':
+				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 364 * DAY_IN_SECONDS ) );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'year_to_date':
+				$start = date( 'Y-01-01 00:00:00', $local_timestamp );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'month_to_date':
+				$start = date( 'Y-m-01 00:00:00', $local_timestamp );
+				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			case 'week_to_date':
+				$week_start = strtotime( 'monday this week', $local_timestamp );
+				$start      = date( 'Y-m-d 00:00:00', $week_start );
+				$end        = date( 'Y-m-d 23:59:59', $local_timestamp );
+				break;
+
+			default:
+				// Default to today
+				$start = current_time( 'Y-m-d 00:00:00' );
+				$end   = current_time( 'Y-m-d 23:59:59' );
+				break;
 		}
 
-		return time() > $expiry_timestamp;
+		// Convert local times to UTC
+		return [
+			'start' => self::to_utc( $start ),
+			'end'   => self::to_utc( $end )
+		];
 	}
 
 	/**
-	 * Calculate expiration date from duration.
+	 * Get date range in pure UTC (for rolling windows)
 	 *
-	 * @param int         $duration_seconds Duration in seconds.
-	 * @param string|null $from_date        Optional. UTC date to calculate from.
+	 * @param string $range Range identifier
 	 *
-	 * @return string|null UTC datetime string or null if invalid.
+	 * @return array{start: string, end: string} UTC range
+	 * @since  1.0.0
+	 * @access private
+	 *
 	 */
-	public static function calculate_expiration( int $duration_seconds, ?string $from_date = null ): ?string {
-		if ( $duration_seconds <= 0 ) {
-			return null;
+	private static function get_range_utc( string $range ): array {
+		$now = time();
+
+		switch ( $range ) {
+			case 'last_7_days':
+				$start = gmdate( 'Y-m-d 00:00:00', $now - ( 6 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $now );
+				break;
+
+			case 'last_30_days':
+				$start = gmdate( 'Y-m-d 00:00:00', $now - ( 29 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $now );
+				break;
+
+			case 'last_90_days':
+				$start = gmdate( 'Y-m-d 00:00:00', $now - ( 89 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $now );
+				break;
+
+			default:
+				$start = gmdate( 'Y-m-d 00:00:00', $now );
+				$end   = gmdate( 'Y-m-d 23:59:59', $now );
+				break;
 		}
 
-		$from_timestamp = empty( $from_date ) ? time() : strtotime( $from_date );
-		if ( false === $from_timestamp ) {
-			return null;
+		return [
+			'start' => $start,
+			'end'   => $end
+		];
+	}
+
+	/**
+	 * Convert a local date range to UTC
+	 *
+	 * @param string $start_local Local start datetime
+	 * @param string $end_local   Local end datetime
+	 *
+	 * @return array{start: string, end: string} UTC range
+	 * @since 1.0.0
+	 *
+	 */
+	public static function range_to_utc( string $start_local, string $end_local ): array {
+		return [
+			'start' => self::to_utc( $start_local ),
+			'end'   => self::to_utc( $end_local )
+		];
+	}
+
+	/**
+	 * Get start of day for UTC date
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 *
+	 * @return string Start of day in UTC
+	 * @since 1.0.0
+	 *
+	 */
+	public static function start_of_day( string $utc_datetime ): string {
+		return gmdate( 'Y-m-d 00:00:00', strtotime( $utc_datetime . ' UTC' ) );
+	}
+
+	/**
+	 * Get end of day for UTC date
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 *
+	 * @return string End of day in UTC
+	 * @since 1.0.0
+	 *
+	 */
+	public static function end_of_day( string $utc_datetime ): string {
+		return gmdate( 'Y-m-d 23:59:59', strtotime( $utc_datetime . ' UTC' ) );
+	}
+
+	/* ========================================================================
+	 * SUBSCRIPTION & BILLING
+	 * ======================================================================== */
+
+	/**
+	 * Get subscription next billing date
+	 *
+	 * @param string $last_payment Last payment UTC datetime
+	 * @param string $period       Period: daily, weekly, monthly, quarterly, biannual, yearly
+	 *
+	 * @return string Next billing UTC datetime
+	 * @since 1.0.0
+	 *
+	 */
+	public static function next_billing( string $last_payment, string $period ): string {
+		$timestamp = strtotime( $last_payment . ' UTC' );
+
+		switch ( $period ) {
+			case 'daily':
+				$timestamp += DAY_IN_SECONDS;
+				break;
+			case 'weekly':
+				$timestamp += WEEK_IN_SECONDS;
+				break;
+			case 'quarterly':
+				return self::add_months( $last_payment, 3 );
+			case 'biannual':
+				return self::add_months( $last_payment, 6 );
+			case 'yearly':
+				return self::add_years( $last_payment, 1 );
+			default:
+				return self::add_months( $last_payment, 1 );
 		}
 
-		return gmdate( 'Y-m-d H:i:s', $from_timestamp + $duration_seconds );
+		return gmdate( 'Y-m-d H:i:s', $timestamp );
+	}
+
+	/**
+	 * Calculate expiration date from now
+	 *
+	 * @param int    $duration Duration value
+	 * @param string $unit     Unit: days, hours, minutes, months, years
+	 *
+	 * @return string UTC expiration datetime
+	 * @since 1.0.0
+	 *
+	 */
+	public static function calculate_expiration( int $duration, string $unit = 'days' ): string {
+		return self::add( self::now_utc(), $duration, $unit );
+	}
+
+	/* ========================================================================
+	 * DATABASE HELPERS
+	 * ======================================================================== */
+
+	/**
+	 * Build database query for date range
+	 *
+	 * @param string $column      Database column name
+	 * @param string $start_local Local start datetime
+	 * @param string $end_local   Local end datetime
+	 *
+	 * @return array{sql: string, values: array} Query parts
+	 * @since 1.0.0
+	 *
+	 */
+	public static function build_date_query( string $column, string $start_local, string $end_local ): array {
+		return [
+			'sql'    => "{$column} BETWEEN %s AND %s",
+			'values' => [ self::to_utc( $start_local ), self::to_utc( $end_local ) ]
+		];
+	}
+
+	/* ========================================================================
+	 * OPTIONS & CONSTANTS
+	 * ======================================================================== */
+
+	/**
+	 * Get available range options for dropdowns
+	 *
+	 * @return array Array of value => label pairs
+	 * @since 1.0.0
+	 *
+	 */
+	public static function get_range_options(): array {
+		return [
+			'today'         => __( 'Today', 'arraypress' ),
+			'yesterday'     => __( 'Yesterday', 'arraypress' ),
+			'tomorrow'      => __( 'Tomorrow', 'arraypress' ),
+			'this_week'     => __( 'This Week', 'arraypress' ),
+			'last_week'     => __( 'Last Week', 'arraypress' ),
+			'next_week'     => __( 'Next Week', 'arraypress' ),
+			'this_month'    => __( 'This Month', 'arraypress' ),
+			'last_month'    => __( 'Last Month', 'arraypress' ),
+			'next_month'    => __( 'Next Month', 'arraypress' ),
+			'this_quarter'  => __( 'This Quarter', 'arraypress' ),
+			'last_quarter'  => __( 'Last Quarter', 'arraypress' ),
+			'this_year'     => __( 'This Year', 'arraypress' ),
+			'last_year'     => __( 'Last Year', 'arraypress' ),
+			'last_7_days'   => __( 'Last 7 Days', 'arraypress' ),
+			'last_30_days'  => __( 'Last 30 Days', 'arraypress' ),
+			'last_60_days'  => __( 'Last 60 Days', 'arraypress' ),
+			'last_90_days'  => __( 'Last 90 Days', 'arraypress' ),
+			'last_180_days' => __( 'Last 180 Days', 'arraypress' ),
+			'last_365_days' => __( 'Last 365 Days', 'arraypress' ),
+			'year_to_date'  => __( 'Year to Date', 'arraypress' ),
+			'month_to_date' => __( 'Month to Date', 'arraypress' ),
+			'week_to_date'  => __( 'Week to Date', 'arraypress' ),
+		];
+	}
+
+	/**
+	 * Get subscription period options
+	 *
+	 * @return array Array of value => label pairs
+	 * @since 1.0.0
+	 *
+	 */
+	public static function get_period_options(): array {
+		return [
+			'daily'     => __( 'Daily', 'arraypress' ),
+			'weekly'    => __( 'Weekly', 'arraypress' ),
+			'monthly'   => __( 'Monthly', 'arraypress' ),
+			'quarterly' => __( 'Quarterly', 'arraypress' ),
+			'biannual'  => __( 'Every 6 Months', 'arraypress' ),
+			'yearly'    => __( 'Yearly', 'arraypress' ),
+		];
 	}
 
 }

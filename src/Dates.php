@@ -15,6 +15,7 @@
 namespace ArrayPress\DateUtils;
 
 // Exit if accessed directly
+use DateInterval;
 use DateTime;
 use DateTimeZone;
 use Exception;
@@ -172,6 +173,7 @@ class Dates {
 	 * @param string $unit         Unit: days, hours, minutes, seconds, weeks, months, years
 	 *
 	 * @return string Modified UTC datetime
+	 * @throws Exception
 	 * @since 1.0.0
 	 *
 	 */
@@ -186,12 +188,13 @@ class Dates {
 	 * @param int    $months       Number of months to add
 	 *
 	 * @return string Modified UTC datetime
+	 * @throws Exception
 	 * @since 1.0.0
 	 *
 	 */
 	public static function add_months( string $utc_datetime, int $months ): string {
 		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
-		$date->add( new \DateInterval( "P{$months}M" ) );
+		$date->add( new DateInterval( "P{$months}M" ) );
 
 		return $date->format( 'Y-m-d H:i:s' );
 	}
@@ -209,7 +212,7 @@ class Dates {
 	 */
 	public static function add_years( string $utc_datetime, int $years ): string {
 		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
-		$date->add( new \DateInterval( "P{$years}Y" ) );
+		$date->add( new DateInterval( "P{$years}Y" ) );
 
 		return $date->format( 'Y-m-d H:i:s' );
 	}
@@ -246,6 +249,23 @@ class Dates {
 			default:
 				return intval( $diff_seconds / DAY_IN_SECONDS );
 		}
+	}
+
+	/**
+	 * Get elapsed time since a datetime
+	 *
+	 * @param string $utc_datetime UTC datetime
+	 * @param string $unit         Unit to return: days, hours, minutes, seconds
+	 *
+	 * @return int|null Elapsed time in specified unit, or null if invalid date
+	 * @since 1.0.0
+	 */
+	public static function elapsed( string $utc_datetime, string $unit = 'hours' ): ?int {
+		if ( ! $utc_datetime || self::is_zero( $utc_datetime ) ) {
+			return null;
+		}
+
+		return self::diff( $utc_datetime, self::now_utc(), $unit );
 	}
 
 	/* ========================================================================
@@ -328,6 +348,31 @@ class Dates {
 			esc_html( $formatted ),
 			esc_html( $relative )
 		);
+	}
+
+	/**
+	 * Format datetime with empty value handling
+	 *
+	 * @param string|null $utc_datetime UTC datetime
+	 * @param string      $empty_text   Text to show for empty/zero dates
+	 * @param string      $format_type  Format type: 'datetime', 'date', 'time', 'human', 'admin'
+	 *
+	 * @return string Formatted datetime or empty text
+	 * @since 1.0.0
+	 */
+	public static function format_or_empty( ?string $utc_datetime, string $empty_text = '—', string $format_type = 'datetime' ): string {
+		if ( ! $utc_datetime || self::is_zero( $utc_datetime ) ) {
+			return $empty_text;
+		}
+
+		switch ( $format_type ) {
+			case 'human':
+				return self::human_diff( $utc_datetime );
+			case 'admin':
+				return self::format_admin( $utc_datetime );
+			default:
+				return self::format( $utc_datetime, $format_type );
+		}
 	}
 
 	/* ========================================================================
@@ -441,6 +486,46 @@ class Dates {
 		$end   = strtotime( $end_utc . ' UTC' );
 
 		return $date >= $start && $date <= $end;
+	}
+
+	/**
+	 * Check if a datetime is older than a specified threshold (is stale)
+	 *
+	 * @param string|null $utc_datetime UTC datetime to check
+	 * @param int         $threshold    Threshold value
+	 * @param string      $unit         Unit: hours, days, minutes, seconds, weeks
+	 *
+	 * @return bool True if datetime is older than threshold or empty
+	 * @since 1.0.0
+	 */
+	public static function is_stale( ?string $utc_datetime, int $threshold, string $unit = 'hours' ): bool {
+		if ( ! $utc_datetime || self::is_zero( $utc_datetime ) ) {
+			return true;
+		}
+
+		$elapsed = self::diff( $utc_datetime, self::now_utc(), $unit );
+
+		return $elapsed >= $threshold;
+	}
+
+	/**
+	 * Check if a datetime is within a specified threshold (is fresh)
+	 *
+	 * @param string|null $utc_datetime UTC datetime to check
+	 * @param int         $threshold    Threshold value
+	 * @param string      $unit         Unit: hours, days, minutes, seconds, weeks
+	 *
+	 * @return bool True if datetime is within threshold and not empty
+	 * @since 1.0.0
+	 */
+	public static function is_fresh( ?string $utc_datetime, int $threshold, string $unit = 'hours' ): bool {
+		if ( ! $utc_datetime || self::is_zero( $utc_datetime ) ) {
+			return false;
+		}
+
+		$elapsed = self::diff( $utc_datetime, self::now_utc(), $unit );
+
+		return $elapsed < $threshold;
 	}
 
 	/* ========================================================================
@@ -806,11 +891,11 @@ class Dates {
 	 * Get subscription next billing date
 	 *
 	 * @param string $last_payment Last payment UTC datetime
-	 * @param string $period       Period: daily, weekly, monthly, quarterly, biannual, yearly
+	 * @param string $period       Period: daily, weekly, monthly, yearly, every_3_months, every_6_months
 	 *
 	 * @return string Next billing UTC datetime
+	 * @throws Exception
 	 * @since 1.0.0
-	 *
 	 */
 	public static function next_billing( string $last_payment, string $period ): string {
 		$timestamp = strtotime( $last_payment . ' UTC' );
@@ -822,9 +907,9 @@ class Dates {
 			case 'weekly':
 				$timestamp += WEEK_IN_SECONDS;
 				break;
-			case 'quarterly':
+			case 'every_3_months':
 				return self::add_months( $last_payment, 3 );
-			case 'biannual':
+			case 'every_6_months':
 				return self::add_months( $last_payment, 6 );
 			case 'yearly':
 				return self::add_years( $last_payment, 1 );
@@ -842,6 +927,7 @@ class Dates {
 	 * @param string $unit     Unit: days, hours, minutes, months, years
 	 *
 	 * @return string UTC expiration datetime
+	 * @throws Exception
 	 * @since 1.0.0
 	 *
 	 */
@@ -880,51 +966,72 @@ class Dates {
 	 *
 	 * @return array Array of value => label pairs
 	 * @since 1.0.0
-	 *
 	 */
 	public static function get_range_options(): array {
 		return [
 			'today'         => __( 'Today', 'arraypress' ),
 			'yesterday'     => __( 'Yesterday', 'arraypress' ),
-			'tomorrow'      => __( 'Tomorrow', 'arraypress' ),
 			'this_week'     => __( 'This Week', 'arraypress' ),
 			'last_week'     => __( 'Last Week', 'arraypress' ),
-			'next_week'     => __( 'Next Week', 'arraypress' ),
 			'this_month'    => __( 'This Month', 'arraypress' ),
 			'last_month'    => __( 'Last Month', 'arraypress' ),
-			'next_month'    => __( 'Next Month', 'arraypress' ),
-			'this_quarter'  => __( 'This Quarter', 'arraypress' ),
-			'last_quarter'  => __( 'Last Quarter', 'arraypress' ),
 			'this_year'     => __( 'This Year', 'arraypress' ),
 			'last_year'     => __( 'Last Year', 'arraypress' ),
 			'last_7_days'   => __( 'Last 7 Days', 'arraypress' ),
 			'last_30_days'  => __( 'Last 30 Days', 'arraypress' ),
-			'last_60_days'  => __( 'Last 60 Days', 'arraypress' ),
 			'last_90_days'  => __( 'Last 90 Days', 'arraypress' ),
-			'last_180_days' => __( 'Last 180 Days', 'arraypress' ),
-			'last_365_days' => __( 'Last 365 Days', 'arraypress' ),
 			'year_to_date'  => __( 'Year to Date', 'arraypress' ),
-			'month_to_date' => __( 'Month to Date', 'arraypress' ),
-			'week_to_date'  => __( 'Week to Date', 'arraypress' ),
 		];
 	}
 
 	/**
-	 * Get subscription period options
+	 * Get subscription period options (Stripe-compatible)
+	 *
+	 * @param bool $include_custom Include custom option
 	 *
 	 * @return array Array of value => label pairs
 	 * @since 1.0.0
-	 *
 	 */
-	public static function get_period_options(): array {
-		return [
-			'daily'     => __( 'Daily', 'arraypress' ),
-			'weekly'    => __( 'Weekly', 'arraypress' ),
-			'monthly'   => __( 'Monthly', 'arraypress' ),
-			'quarterly' => __( 'Quarterly', 'arraypress' ),
-			'biannual'  => __( 'Every 6 Months', 'arraypress' ),
-			'yearly'    => __( 'Yearly', 'arraypress' ),
+	public static function get_period_options( bool $include_custom = false ): array {
+		$options = [
+			'daily'          => __( 'Daily', 'arraypress' ),
+			'weekly'         => __( 'Weekly', 'arraypress' ),
+			'monthly'        => __( 'Monthly', 'arraypress' ),
+			'every_3_months' => __( 'Every 3 months', 'arraypress' ),
+			'every_6_months' => __( 'Every 6 months', 'arraypress' ),
+			'yearly'         => __( 'Yearly', 'arraypress' ),
 		];
+
+		if ( $include_custom ) {
+			$options['custom'] = __( 'Custom', 'arraypress' );
+		}
+
+		return $options;
+	}
+
+	/**
+	 * Get Stripe-compatible interval format
+	 *
+	 * @param string $period Our period name
+	 *
+	 * @return array{interval: string, interval_count: int} Stripe interval format
+	 * @since 1.0.0
+	 */
+	public static function get_stripe_interval( string $period ): array {
+		switch ( $period ) {
+			case 'daily':
+				return [ 'interval' => 'day', 'interval_count' => 1 ];
+			case 'weekly':
+				return [ 'interval' => 'week', 'interval_count' => 1 ];
+			case 'every_3_months':
+				return [ 'interval' => 'month', 'interval_count' => 3 ];
+			case 'every_6_months':
+				return [ 'interval' => 'month', 'interval_count' => 6 ];
+			case 'yearly':
+				return [ 'interval' => 'year', 'interval_count' => 1 ];
+			default:
+				return [ 'interval' => 'month', 'interval_count' => 1 ];
+		}
 	}
 
 }

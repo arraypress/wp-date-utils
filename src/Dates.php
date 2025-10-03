@@ -969,18 +969,18 @@ class Dates {
 	 */
 	public static function get_range_options(): array {
 		return [
-			'today'         => __( 'Today', 'arraypress' ),
-			'yesterday'     => __( 'Yesterday', 'arraypress' ),
-			'this_week'     => __( 'This Week', 'arraypress' ),
-			'last_week'     => __( 'Last Week', 'arraypress' ),
-			'this_month'    => __( 'This Month', 'arraypress' ),
-			'last_month'    => __( 'Last Month', 'arraypress' ),
-			'this_year'     => __( 'This Year', 'arraypress' ),
-			'last_year'     => __( 'Last Year', 'arraypress' ),
-			'last_7_days'   => __( 'Last 7 Days', 'arraypress' ),
-			'last_30_days'  => __( 'Last 30 Days', 'arraypress' ),
-			'last_90_days'  => __( 'Last 90 Days', 'arraypress' ),
-			'year_to_date'  => __( 'Year to Date', 'arraypress' ),
+			'today'        => __( 'Today', 'arraypress' ),
+			'yesterday'    => __( 'Yesterday', 'arraypress' ),
+			'this_week'    => __( 'This Week', 'arraypress' ),
+			'last_week'    => __( 'Last Week', 'arraypress' ),
+			'this_month'   => __( 'This Month', 'arraypress' ),
+			'last_month'   => __( 'Last Month', 'arraypress' ),
+			'this_year'    => __( 'This Year', 'arraypress' ),
+			'last_year'    => __( 'Last Year', 'arraypress' ),
+			'last_7_days'  => __( 'Last 7 Days', 'arraypress' ),
+			'last_30_days' => __( 'Last 30 Days', 'arraypress' ),
+			'last_90_days' => __( 'Last 90 Days', 'arraypress' ),
+			'year_to_date' => __( 'Year to Date', 'arraypress' ),
 		];
 	}
 
@@ -1032,6 +1032,125 @@ class Dates {
 			default:
 				return [ 'interval' => 'month', 'interval_count' => 1 ];
 		}
+	}
+
+	/* ========================================================================
+	 * TIMEZONE
+	 * ======================================================================== */
+
+	/**
+	 * Convert datetime between specific timezones
+	 *
+	 * @param string $datetime Source datetime
+	 * @param string $from_tz  Source timezone (e.g., 'UTC', 'America/New_York')
+	 * @param string $to_tz    Target timezone (e.g., 'Europe/London', 'Asia/Tokyo')
+	 *
+	 * @return string Converted datetime in target timezone
+	 * @throws Exception If invalid timezone or datetime
+	 * @since 1.0.0
+	 */
+	public static function convert_timezone( string $datetime, string $from_tz, string $to_tz ): string {
+		try {
+			$date = new DateTime( $datetime, new DateTimeZone( $from_tz ) );
+			$date->setTimezone( new DateTimeZone( $to_tz ) );
+
+			return $date->format( 'Y-m-d H:i:s' );
+		} catch ( Exception $e ) {
+			throw new Exception( 'Invalid timezone or datetime: ' . $e->getMessage() );
+		}
+	}
+
+	/* ========================================================================
+	 * WORKING DAYS
+	 * ======================================================================== */
+
+	/**
+	 * Add working/business days to a date (excluding weekends)
+	 *
+	 * @param string $utc_datetime  Starting UTC datetime
+	 * @param int    $days          Number of working days to add (can be negative)
+	 * @param array  $business_days Days considered working days (1=Mon, 7=Sun)
+	 * @param array  $holidays      Optional array of holiday dates in 'Y-m-d' format
+	 *
+	 * @return string Resulting UTC datetime
+	 * @since 1.0.0
+	 */
+	public static function add_working_days(
+		string $utc_datetime, int $days, array $business_days = [
+		1,
+		2,
+		3,
+		4,
+		5
+	], array $holidays = []
+	): string {
+		$timestamp = strtotime( $utc_datetime . ' UTC' );
+		$direction = $days < 0 ? - 1 : 1;
+		$days      = abs( $days );
+		$added     = 0;
+
+		while ( $added < $days ) {
+			$timestamp   += $direction * DAY_IN_SECONDS;
+			$day_of_week = (int) gmdate( 'N', $timestamp );
+			$date_string = gmdate( 'Y-m-d', $timestamp );
+
+			// Check if it's a business day and not a holiday
+			if ( in_array( $day_of_week, $business_days ) && ! in_array( $date_string, $holidays ) ) {
+				$added ++;
+			}
+		}
+
+		// Preserve the original time
+		$time_part = gmdate( 'H:i:s', strtotime( $utc_datetime . ' UTC' ) );
+
+		return gmdate( 'Y-m-d', $timestamp ) . ' ' . $time_part;
+	}
+
+	/**
+	 * Calculate number of working days between two dates
+	 *
+	 * @param string $start_utc     Start UTC datetime
+	 * @param string $end_utc       End UTC datetime
+	 * @param array  $business_days Days considered working days (1=Mon, 7=Sun)
+	 * @param array  $holidays      Optional array of holiday dates in 'Y-m-d' format
+	 *
+	 * @return int Number of working days
+	 * @since 1.0.0
+	 */
+	public static function working_days_between(
+		string $start_utc, string $end_utc, array $business_days = [
+		1,
+		2,
+		3,
+		4,
+		5
+	], array $holidays = []
+	): int {
+		$start = strtotime( $start_utc . ' UTC' );
+		$end   = strtotime( $end_utc . ' UTC' );
+
+		// Ensure start is before end
+		if ( $start > $end ) {
+			$temp  = $start;
+			$start = $end;
+			$end   = $temp;
+		}
+
+		$working_days = 0;
+		$current      = $start;
+
+		while ( $current <= $end ) {
+			$day_of_week = (int) gmdate( 'N', $current );
+			$date_string = gmdate( 'Y-m-d', $current );
+
+			if ( in_array( $day_of_week, $business_days ) && ! in_array( $date_string, $holidays ) ) {
+				$working_days ++;
+			}
+
+			$current += DAY_IN_SECONDS;
+		}
+
+		return $working_days;
 	}
 
 }

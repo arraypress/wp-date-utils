@@ -14,18 +14,16 @@
 
 namespace ArrayPress\DateUtils;
 
-// Exit if accessed directly
 use DateInterval;
 use DateTime;
 use DateTimeZone;
 use Exception;
 
+// Exit if accessed directly
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Simple Date utilities for WordPress
- *
-
  */
 class Dates {
 
@@ -39,7 +37,6 @@ class Dates {
 	 * @param string $format Format string (default MySQL format)
 	 *
 	 * @return string UTC datetime
-	 *
 	 */
 	public static function now_utc( string $format = 'Y-m-d H:i:s' ): string {
 		return gmdate( $format );
@@ -51,7 +48,6 @@ class Dates {
 	 * @param string $format Format string (default MySQL format)
 	 *
 	 * @return string Local datetime
-	 *
 	 */
 	public static function now_local( string $format = 'Y-m-d H:i:s' ): string {
 		return current_time( $format );
@@ -64,7 +60,6 @@ class Dates {
 	 * @param string $format         Output format
 	 *
 	 * @return string UTC datetime
-	 *
 	 */
 	public static function to_utc( string $local_datetime, string $format = 'Y-m-d H:i:s' ): string {
 		return get_gmt_from_date( $local_datetime, $format );
@@ -77,7 +72,6 @@ class Dates {
 	 * @param string $format       Output format (empty = WP settings)
 	 *
 	 * @return string Local datetime
-	 *
 	 */
 	public static function to_local( string $utc_datetime, string $format = '' ): string {
 		if ( self::is_zero( $utc_datetime ) ) {
@@ -97,7 +91,6 @@ class Dates {
 	 * @param int $timestamp Unix timestamp
 	 *
 	 * @return string MySQL datetime in UTC
-	 *
 	 */
 	public static function timestamp_to_mysql( int $timestamp ): string {
 		return gmdate( 'Y-m-d H:i:s', $timestamp );
@@ -109,7 +102,6 @@ class Dates {
 	 * @param string $datetime MySQL datetime
 	 *
 	 * @return int Unix timestamp
-	 *
 	 */
 	public static function to_timestamp( string $datetime ): int {
 		return strtotime( $datetime . ' UTC' );
@@ -128,7 +120,6 @@ class Dates {
 	 *
 	 * @return string Modified UTC datetime
 	 * @throws Exception
-	 *
 	 */
 	public static function add( string $utc_datetime, int $amount, string $unit = 'days' ): string {
 		$timestamp = strtotime( $utc_datetime . ' UTC' );
@@ -167,7 +158,6 @@ class Dates {
 	 *
 	 * @return string Modified UTC datetime
 	 * @throws Exception
-	 *
 	 */
 	public static function subtract( string $utc_datetime, int $amount, string $unit = 'days' ): string {
 		return self::add( $utc_datetime, - $amount, $unit );
@@ -181,7 +171,6 @@ class Dates {
 	 *
 	 * @return string Modified UTC datetime
 	 * @throws Exception
-	 *
 	 */
 	public static function add_months( string $utc_datetime, int $months ): string {
 		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
@@ -198,7 +187,6 @@ class Dates {
 	 *
 	 * @return string Modified UTC datetime
 	 * @throws Exception
-	 *
 	 */
 	public static function add_years( string $utc_datetime, int $years ): string {
 		$date = new DateTime( $utc_datetime, new DateTimeZone( 'UTC' ) );
@@ -215,7 +203,6 @@ class Dates {
 	 * @param string $unit      Unit to return: days, hours, minutes, seconds
 	 *
 	 * @return int Difference in specified unit
-	 *
 	 */
 	public static function diff( string $date1_utc, string $date2_utc, string $unit = 'days' ): int {
 		$timestamp1   = strtotime( $date1_utc . ' UTC' );
@@ -251,7 +238,6 @@ class Dates {
 	 * @param string $type         Type: 'date', 'time', or 'datetime'
 	 *
 	 * @return string Formatted datetime
-	 *
 	 */
 	public static function format( string $utc_datetime, string $type = 'datetime' ): string {
 		if ( self::is_zero( $utc_datetime ) ) {
@@ -280,7 +266,6 @@ class Dates {
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return string Human-readable difference
-	 *
 	 */
 	public static function human_diff( string $utc_datetime ): string {
 		if ( self::is_zero( $utc_datetime ) ) {
@@ -302,7 +287,6 @@ class Dates {
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return string HTML formatted date with relative time
-	 *
 	 */
 	public static function format_admin( string $utc_datetime ): string {
 		if ( self::is_zero( $utc_datetime ) ) {
@@ -343,6 +327,23 @@ class Dates {
 		}
 	}
 
+	/**
+	 * Format a date range for display
+	 *
+	 * @param string $start_utc UTC start datetime
+	 * @param string $end_utc   UTC end datetime
+	 * @param string $format    Date format (defaults to 'M j, Y')
+	 * @param string $separator Separator between dates (defaults to ' — ')
+	 *
+	 * @return string Formatted date range
+	 */
+	public static function format_range( string $start_utc, string $end_utc, string $format = 'M j, Y', string $separator = ' — ' ): string {
+		$start_formatted = self::to_local( $start_utc, $format );
+		$end_formatted   = self::to_local( $end_utc, $format );
+
+		return $start_formatted . $separator . $end_formatted;
+	}
+
 	/* ========================================================================
 	 * VALIDATION & CHECKS
 	 * ======================================================================== */
@@ -353,7 +354,6 @@ class Dates {
 	 * @param string|null $date Date value
 	 *
 	 * @return bool True if zero/empty
-	 *
 	 */
 	public static function is_zero( ?string $date ): bool {
 		return empty( $date )
@@ -367,7 +367,6 @@ class Dates {
 	 * @param string $date Date string to validate
 	 *
 	 * @return bool True if valid date
-	 *
 	 */
 	public static function is_valid( string $date ): bool {
 		return strtotime( $date ) !== false;
@@ -380,7 +379,6 @@ class Dates {
 	 * @param string $format Expected format (e.g., 'Y-m-d')
 	 *
 	 * @return bool True if matches format
-	 *
 	 */
 	public static function is_format( string $date, string $format ): bool {
 		$d = DateTime::createFromFormat( $format, $date );
@@ -395,7 +393,6 @@ class Dates {
 	 * @param int    $grace_hours  Optional grace period in hours
 	 *
 	 * @return bool True if expired
-	 *
 	 */
 	public static function is_expired( string $utc_datetime, int $grace_hours = 0 ): bool {
 		$expiry = strtotime( $utc_datetime . ' UTC' );
@@ -413,7 +410,6 @@ class Dates {
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return bool True if past
-	 *
 	 */
 	public static function is_past( string $utc_datetime ): bool {
 		return strtotime( $utc_datetime . ' UTC' ) < time();
@@ -425,7 +421,6 @@ class Dates {
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return bool True if future
-	 *
 	 */
 	public static function is_future( string $utc_datetime ): bool {
 		return strtotime( $utc_datetime . ' UTC' ) > time();
@@ -439,7 +434,6 @@ class Dates {
 	 * @param string $end_utc   UTC end datetime
 	 *
 	 * @return bool True if within range
-	 *
 	 */
 	public static function in_range( string $date_utc, string $start_utc, string $end_utc ): bool {
 		$date  = strtotime( $date_utc . ' UTC' );
@@ -497,7 +491,6 @@ class Dates {
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return bool True if weekend (Saturday or Sunday)
-	 *
 	 */
 	public static function is_weekend( string $utc_datetime ): bool {
 		$day = gmdate( 'N', strtotime( $utc_datetime . ' UTC' ) );
@@ -512,7 +505,6 @@ class Dates {
 	 *
 	 * @return int Age in years
 	 * @throws Exception
-	 *
 	 */
 	public static function get_age( string $birth_date_utc ): int {
 		$birth = new DateTime( $birth_date_utc, new DateTimeZone( 'UTC' ) );
@@ -637,6 +629,12 @@ class Dates {
 				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
+			case 'all_time':
+				return [
+					'start' => '1970-01-01 00:00:00',
+					'end'   => self::now_utc()
+				];
+
 			default:
 				// Default to today
 				$start = current_time( 'Y-m-d 00:00:00' );
@@ -657,9 +655,6 @@ class Dates {
 	 * @param string $range Range identifier
 	 *
 	 * @return array{start: string, end: string} UTC range
-	 * @since  1.0.0
-	 * @access private
-	 *
 	 */
 	private static function get_range_utc( string $range ): array {
 		$now = time();
@@ -699,7 +694,6 @@ class Dates {
 	 * @param string $end_local   Local end datetime
 	 *
 	 * @return array{start: string, end: string} UTC range
-	 *
 	 */
 	public static function range_to_utc( string $start_local, string $end_local ): array {
 		return [
@@ -709,12 +703,100 @@ class Dates {
 	}
 
 	/**
+	 * Get date range with both UTC and local representations
+	 *
+	 * Returns UTC dates for database queries and local dates for display.
+	 * Handles preset ranges, custom ranges, and the special 'all_time' case.
+	 *
+	 * @param string $range        Range identifier or 'custom'
+	 * @param string $custom_start Custom start date (local, Y-m-d format) - only used if range is 'custom'
+	 * @param string $custom_end   Custom end date (local, Y-m-d format) - only used if range is 'custom'
+	 *
+	 * @return array{start: string, end: string, start_local: string, end_local: string, preset: string}
+	 */
+	public static function get_range_full( string $range, string $custom_start = '', string $custom_end = '' ): array {
+		// Handle custom range
+		if ( $range === 'custom' && $custom_start && $custom_end ) {
+			$utc_range = self::range_to_utc(
+				$custom_start . ' 00:00:00',
+				$custom_end . ' 23:59:59'
+			);
+
+			return [
+				'start'       => $utc_range['start'],
+				'end'         => $utc_range['end'],
+				'start_local' => $custom_start,
+				'end_local'   => $custom_end,
+				'preset'      => 'custom',
+			];
+		}
+
+		// Handle all_time specially
+		if ( $range === 'all_time' ) {
+			return [
+				'start'       => '1970-01-01 00:00:00',
+				'end'         => self::now_utc(),
+				'start_local' => '1970-01-01',
+				'end_local'   => self::now_local( 'Y-m-d' ),
+				'preset'      => 'all_time',
+			];
+		}
+
+		// Standard preset
+		$utc_range = self::get_range( $range, true );
+
+		return [
+			'start'       => $utc_range['start'],
+			'end'         => $utc_range['end'],
+			'start_local' => self::to_local( $utc_range['start'], 'Y-m-d' ),
+			'end_local'   => self::to_local( $utc_range['end'], 'Y-m-d' ),
+			'preset'      => $range,
+		];
+	}
+
+	/**
+	 * Get the previous period for comparison
+	 *
+	 * Calculates a period of equal length immediately preceding the given range.
+	 * Useful for period-over-period comparisons in reports.
+	 *
+	 * @param string $start_utc UTC start datetime of current period
+	 * @param string $end_utc   UTC end datetime of current period
+	 *
+	 * @return array{start: string, end: string, start_local: string, end_local: string}
+	 */
+	public static function get_previous_period( string $start_utc, string $end_utc ): array {
+		$days = self::diff( $start_utc, $end_utc, 'days' ) + 1;
+
+		$prev_end   = self::subtract( $start_utc, 1, 'seconds' );
+		$prev_start = self::subtract( $prev_end, $days, 'days' );
+
+		return [
+			'start'       => $prev_start,
+			'end'         => $prev_end,
+			'start_local' => self::to_local( $prev_start, 'Y-m-d' ),
+			'end_local'   => self::to_local( $prev_end, 'Y-m-d' ),
+		];
+	}
+
+	/**
+	 * Get number of days in a date range (inclusive)
+	 *
+	 * @param string $start_utc UTC start datetime
+	 * @param string $end_utc   UTC end datetime
+	 *
+	 * @return int Number of days
+	 */
+	public static function days_in_range( string $start_utc, string $end_utc ): int {
+		return self::diff( $start_utc, $end_utc, 'days' ) + 1;
+	}
+
+	/**
 	 * Get day boundaries (start and end of day)
 	 *
 	 * @param string $utc_datetime UTC datetime
 	 *
 	 * @return array{start: string, end: string} Start and end of day in UTC
-	 *
 	 */
 	public static function day_bounds( string $utc_datetime ): array {
 		$timestamp = strtotime( $utc_datetime . ' UTC' );
@@ -737,7 +819,6 @@ class Dates {
 	 * @param string $end_local   Local end datetime
 	 *
 	 * @return array{sql: string, values: array} Query parts
-	 *
 	 */
 	public static function build_date_query( string $column, string $start_local, string $end_local ): array {
 		return [
@@ -753,10 +834,13 @@ class Dates {
 	/**
 	 * Get available range options for dropdowns
 	 *
+	 * @param bool $include_custom  Whether to include the 'custom' option
+	 * @param bool $include_alltime Whether to include the 'all_time' option
+	 *
 	 * @return array Array of value => label pairs
 	 */
-	public static function get_range_options(): array {
-		return [
+	public static function get_range_options( bool $include_custom = false, bool $include_alltime = false ): array {
+		$options = [
 			'today'         => __( 'Today', 'arraypress' ),
 			'yesterday'     => __( 'Yesterday', 'arraypress' ),
 			'this_week'     => __( 'This Week', 'arraypress' ),
@@ -773,6 +857,16 @@ class Dates {
 			'year_to_date'  => __( 'Year to Date', 'arraypress' ),
 			'month_to_date' => __( 'Month to Date', 'arraypress' ),
 		];
+
+		if ( $include_alltime ) {
+			$options['all_time'] = __( 'All Time', 'arraypress' );
+		}
+
+		if ( $include_custom ) {
+			$options['custom'] = __( 'Custom Range', 'arraypress' );
+		}
+
+		return $options;
 	}
 
 }

@@ -869,4 +869,78 @@ class Dates {
 		return $options;
 	}
 
+	/**
+	 * Format seconds into human-readable duration
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int    $seconds Total seconds.
+	 * @param string $format  Format style: 'short' (2h 15m), 'long' (2 hours, 15 minutes), 'compact' (2:15:00).
+	 *
+	 * @return string Formatted duration.
+	 */
+	public static function format_duration( int $seconds, string $format = 'short' ): string {
+		if ( $seconds < 0 ) {
+			return '—';
+		}
+
+		if ( $seconds === 0 ) {
+			return match ( $format ) {
+				'compact' => '0:00',
+				'long'    => __( '0 seconds', 'arraypress' ),
+				default   => '0s',
+			};
+		}
+
+		$days    = (int) floor( $seconds / DAY_IN_SECONDS );
+		$hours   = (int) floor( ( $seconds % DAY_IN_SECONDS ) / HOUR_IN_SECONDS );
+		$minutes = (int) floor( ( $seconds % HOUR_IN_SECONDS ) / MINUTE_IN_SECONDS );
+		$secs    = $seconds % MINUTE_IN_SECONDS;
+
+		if ( $format === 'compact' ) {
+			if ( $days > 0 ) {
+				return sprintf( '%d:%02d:%02d:%02d', $days, $hours, $minutes, $secs );
+			} elseif ( $hours > 0 ) {
+				return sprintf( '%d:%02d:%02d', $hours, $minutes, $secs );
+			}
+
+			return sprintf( '%d:%02d', $minutes, $secs );
+		}
+
+		$parts = [];
+
+		if ( $format === 'long' ) {
+			if ( $days > 0 ) {
+				$parts[] = sprintf( _n( '%d day', '%d days', $days, 'arraypress' ), $days );
+			}
+			if ( $hours > 0 ) {
+				$parts[] = sprintf( _n( '%d hour', '%d hours', $hours, 'arraypress' ), $hours );
+			}
+			if ( $minutes > 0 ) {
+				$parts[] = sprintf( _n( '%d minute', '%d minutes', $minutes, 'arraypress' ), $minutes );
+			}
+			// Only show seconds for short durations (under 1 hour)
+			if ( $secs > 0 && $seconds < HOUR_IN_SECONDS ) {
+				$parts[] = sprintf( _n( '%d second', '%d seconds', $secs, 'arraypress' ), $secs );
+			}
+		} else {
+			// Short format: 2d 5h 15m 30s
+			if ( $days > 0 ) {
+				$parts[] = $days . 'd';
+			}
+			if ( $hours > 0 ) {
+				$parts[] = $hours . 'h';
+			}
+			if ( $minutes > 0 ) {
+				$parts[] = $minutes . 'm';
+			}
+			// Only show seconds for short durations (under 1 hour)
+			if ( $secs > 0 && $seconds < HOUR_IN_SECONDS ) {
+				$parts[] = $secs . 's';
+			}
+		}
+
+		return implode( ' ', $parts ) ?: '0s';
+	}
+
 }

@@ -943,4 +943,48 @@ class Dates {
 		return implode( ' ', $parts ) ?: '0s';
 	}
 
+	/**
+	 * Render a UTC datetime as HTML with human diff and formatted title
+	 *
+	 * Returns a span element showing relative time (e.g., "2 hours ago")
+	 * with the full formatted datetime as a title attribute on hover.
+	 *
+	 * @param string $utc_datetime UTC datetime from database.
+	 *
+	 * @return string|null HTML string or null if empty/zero date.
+	 */
+	public static function render_date( string $utc_datetime ): ?string {
+		if ( self::is_zero( $utc_datetime ) ) {
+			return null;
+		}
+
+		return sprintf(
+			'<span title="%s">%s</span>',
+			esc_attr( self::format( $utc_datetime ) ),
+			esc_html( self::human_diff( $utc_datetime ) )
+		);
+	}
+
+	/**
+	 * Render a duration in seconds as formatted HTML
+	 *
+	 * Returns a span element with the human-readable duration.
+	 * Supports short (2h 15m), long (2 hours, 15 minutes), and compact (2:15:00) formats.
+	 *
+	 * @param mixed  $value  Duration in seconds.
+	 * @param string $format Format style: 'short', 'long', or 'compact'.
+	 *
+	 * @return string|null HTML string or null if invalid/negative value.
+	 */
+	public static function render_duration( $value, string $format = 'short' ): ?string {
+		if ( ! is_numeric( $value ) || $value < 0 ) {
+			return null;
+		}
+
+		return sprintf(
+			'<span class="duration">%s</span>',
+			esc_html( self::format_duration( (int) $value, $format ) )
+		);
+	}
+
 }

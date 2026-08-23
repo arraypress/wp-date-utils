@@ -20,7 +20,9 @@ use DateTimeZone;
 use Exception;
 
 // Exit if accessed directly
-defined( 'ABSPATH' ) || exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
+}
 
 /**
  * Simple Date utilities for WordPress

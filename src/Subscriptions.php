@@ -16,7 +16,9 @@ namespace ArrayPress\DateUtils;
 // Exit if accessed directly
 use Exception;
 
-defined( 'ABSPATH' ) || exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
+}
 
 /**
  * Subscription date utilities for WordPress

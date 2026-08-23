@@ -22,7 +22,9 @@
  */
 
 // Exit if accessed directly
-defined( 'ABSPATH' ) || exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	return;
+}
 
 use ArrayPress\DateUtils\Dates;
 

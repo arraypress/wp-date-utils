@@ -359,8 +359,8 @@ class Dates {
 	 */
 	public static function is_zero( ?string $date ): bool {
 		return empty( $date )
-		       || $date === '0000-00-00 00:00:00'
-		       || $date === '0000-00-00';
+				|| $date === '0000-00-00 00:00:00'
+				|| $date === '0000-00-00';
 	}
 
 	/**
@@ -497,7 +497,7 @@ class Dates {
 	public static function is_weekend( string $utc_datetime ): bool {
 		$day = gmdate( 'N', strtotime( $utc_datetime . ' UTC' ) );
 
-		return in_array( $day, [ '6', '7' ] ); // Saturday, Sunday
+		return in_array( $day, [ '6', '7' ], true ); // Saturday, Sunday
 	}
 
 	/**
@@ -532,7 +532,16 @@ class Dates {
 			return self::get_range_utc( $range );
 		}
 
-		// Calculate in local timezone first (more intuitive for users)
+		// Calculate in local timezone first (more intuitive for users).
+		//
+		// current_time( 'timestamp' ) deliberately returns a site-timezone
+		// shifted value rather than a real Unix timestamp. Formatting it with
+		// gmdate() — WordPress keeps PHP's default timezone at UTC — is what
+		// turns it back into local wall-clock date parts. The sniff is right
+		// that this is not a UTC timestamp; that is the point, and every read
+		// of it below is paired with gmdate() rather than a timezone-aware
+		// call.
+		// phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested
 		$local_timestamp = current_time( 'timestamp' );
 
 		switch ( $range ) {
@@ -542,7 +551,7 @@ class Dates {
 				break;
 
 			case 'yesterday':
-				$yesterday = date( 'Y-m-d', $local_timestamp - DAY_IN_SECONDS );
+				$yesterday = gmdate( 'Y-m-d', $local_timestamp - DAY_IN_SECONDS );
 				$start     = $yesterday . ' 00:00:00';
 				$end       = $yesterday . ' 23:59:59';
 				break;
@@ -550,91 +559,91 @@ class Dates {
 			case 'this_week':
 				$week_start = strtotime( 'monday this week', $local_timestamp );
 				$week_end   = strtotime( 'sunday this week', $local_timestamp ) + 86399;
-				$start      = date( 'Y-m-d 00:00:00', $week_start );
-				$end        = date( 'Y-m-d 23:59:59', $week_end );
+				$start      = gmdate( 'Y-m-d 00:00:00', $week_start );
+				$end        = gmdate( 'Y-m-d 23:59:59', $week_end );
 				break;
 
 			case 'last_week':
 				$week_start = strtotime( 'monday last week', $local_timestamp );
 				$week_end   = strtotime( 'sunday last week', $local_timestamp ) + 86399;
-				$start      = date( 'Y-m-d 00:00:00', $week_start );
-				$end        = date( 'Y-m-d 23:59:59', $week_end );
+				$start      = gmdate( 'Y-m-d 00:00:00', $week_start );
+				$end        = gmdate( 'Y-m-d 23:59:59', $week_end );
 				break;
 
 			case 'this_month':
-				$start = date( 'Y-m-01 00:00:00', $local_timestamp );
-				$end   = date( 'Y-m-t 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-m-01 00:00:00', $local_timestamp );
+				$end   = gmdate( 'Y-m-t 23:59:59', $local_timestamp );
 				break;
 
 			case 'last_month':
 				$first_day = strtotime( 'first day of last month', $local_timestamp );
 				$last_day  = strtotime( 'last day of last month', $local_timestamp );
-				$start     = date( 'Y-m-d 00:00:00', $first_day );
-				$end       = date( 'Y-m-d 23:59:59', $last_day );
+				$start     = gmdate( 'Y-m-d 00:00:00', $first_day );
+				$end       = gmdate( 'Y-m-d 23:59:59', $last_day );
 				break;
 
 			case 'this_quarter':
-				$month               = date( 'n', $local_timestamp );
-				$year                = date( 'Y', $local_timestamp );
+				$month               = gmdate( 'n', $local_timestamp );
+				$year                = gmdate( 'Y', $local_timestamp );
 				$quarter_start_month = ceil( $month / 3 ) * 3 - 2;
 				$quarter_end_month   = $quarter_start_month + 2;
-				$start               = date( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
-				$end                 = date( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
+				$start               = gmdate( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
+				$end                 = gmdate( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
 				break;
 
 			case 'last_quarter':
-				$month               = date( 'n', $local_timestamp );
-				$year                = date( 'Y', $local_timestamp );
+				$month               = gmdate( 'n', $local_timestamp );
+				$year                = gmdate( 'Y', $local_timestamp );
 				$quarter_start_month = ceil( $month / 3 ) * 3 - 5;
 				if ( $quarter_start_month < 1 ) {
 					$quarter_start_month += 12;
-					$year --;
+					--$year;
 				}
 				$quarter_end_month = $quarter_start_month + 2;
-				$start             = date( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
-				$end               = date( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
+				$start             = gmdate( 'Y-m-d 00:00:00', mktime( 0, 0, 0, $quarter_start_month, 1, $year ) );
+				$end               = gmdate( 'Y-m-d 23:59:59', mktime( 23, 59, 59, $quarter_end_month + 1, 0, $year ) );
 				break;
 
 			case 'this_year':
-				$start = date( 'Y-01-01 00:00:00', $local_timestamp );
-				$end   = date( 'Y-12-31 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-01-01 00:00:00', $local_timestamp );
+				$end   = gmdate( 'Y-12-31 23:59:59', $local_timestamp );
 				break;
 
 			case 'last_year':
-				$year  = date( 'Y', $local_timestamp ) - 1;
+				$year  = gmdate( 'Y', $local_timestamp ) - 1;
 				$start = $year . '-01-01 00:00:00';
 				$end   = $year . '-12-31 23:59:59';
 				break;
 
 			case 'last_7_days':
-				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 6 * DAY_IN_SECONDS ) );
-				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-m-d 00:00:00', $local_timestamp - ( 6 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
 			case 'last_30_days':
-				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 29 * DAY_IN_SECONDS ) );
-				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-m-d 00:00:00', $local_timestamp - ( 29 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
 			case 'last_90_days':
-				$start = date( 'Y-m-d 00:00:00', $local_timestamp - ( 89 * DAY_IN_SECONDS ) );
-				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-m-d 00:00:00', $local_timestamp - ( 89 * DAY_IN_SECONDS ) );
+				$end   = gmdate( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
 			case 'year_to_date':
-				$start = date( 'Y-01-01 00:00:00', $local_timestamp );
-				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-01-01 00:00:00', $local_timestamp );
+				$end   = gmdate( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
 			case 'month_to_date':
-				$start = date( 'Y-m-01 00:00:00', $local_timestamp );
-				$end   = date( 'Y-m-d 23:59:59', $local_timestamp );
+				$start = gmdate( 'Y-m-01 00:00:00', $local_timestamp );
+				$end   = gmdate( 'Y-m-d 23:59:59', $local_timestamp );
 				break;
 
 			case 'all_time':
 				return [
 					'start' => '1970-01-01 00:00:00',
-					'end'   => self::now_utc()
+					'end'   => self::now_utc(),
 				];
 
 			default:
@@ -647,7 +656,7 @@ class Dates {
 		// Convert local times to UTC
 		return [
 			'start' => self::to_utc( $start ),
-			'end'   => self::to_utc( $end )
+			'end'   => self::to_utc( $end ),
 		];
 	}
 
@@ -685,7 +694,7 @@ class Dates {
 
 		return [
 			'start' => $start,
-			'end'   => $end
+			'end'   => $end,
 		];
 	}
 
@@ -700,7 +709,7 @@ class Dates {
 	public static function range_to_utc( string $start_local, string $end_local ): array {
 		return [
 			'start' => self::to_utc( $start_local ),
-			'end'   => self::to_utc( $end_local )
+			'end'   => self::to_utc( $end_local ),
 		];
 	}
 
@@ -805,7 +814,7 @@ class Dates {
 
 		return [
 			'start' => gmdate( 'Y-m-d 00:00:00', $timestamp ),
-			'end'   => gmdate( 'Y-m-d 23:59:59', $timestamp )
+			'end'   => gmdate( 'Y-m-d 23:59:59', $timestamp ),
 		];
 	}
 
@@ -825,7 +834,7 @@ class Dates {
 	public static function build_date_query( string $column, string $start_local, string $end_local ): array {
 		return [
 			'sql'    => "{$column} BETWEEN %s AND %s",
-			'values' => [ self::to_utc( $start_local ), self::to_utc( $end_local ) ]
+			'values' => [ self::to_utc( $start_local ), self::to_utc( $end_local ) ],
 		];
 	}
 
@@ -913,16 +922,20 @@ class Dates {
 
 		if ( $format === 'long' ) {
 			if ( $days > 0 ) {
+				/* translators: %d: number of days */
 				$parts[] = sprintf( _n( '%d day', '%d days', $days, 'arraypress' ), $days );
 			}
 			if ( $hours > 0 ) {
+				/* translators: %d: number of hours */
 				$parts[] = sprintf( _n( '%d hour', '%d hours', $hours, 'arraypress' ), $hours );
 			}
 			if ( $minutes > 0 ) {
+				/* translators: %d: number of minutes */
 				$parts[] = sprintf( _n( '%d minute', '%d minutes', $minutes, 'arraypress' ), $minutes );
 			}
 			// Only show seconds for short durations (under 1 hour)
 			if ( $secs > 0 && $seconds < HOUR_IN_SECONDS ) {
+				/* translators: %d: number of seconds */
 				$parts[] = sprintf( _n( '%d second', '%d seconds', $secs, 'arraypress' ), $secs );
 			}
 		} else {
@@ -988,5 +1001,4 @@ class Dates {
 			esc_html( self::format_duration( (int) $value, $format ) )
 		);
 	}
-
 }

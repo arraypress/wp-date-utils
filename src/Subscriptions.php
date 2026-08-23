@@ -111,17 +111,35 @@ class Subscriptions {
 	public static function get_stripe_interval( string $period ): array {
 		switch ( $period ) {
 			case 'daily':
-				return [ 'interval' => 'day', 'interval_count' => 1 ];
+				return [
+					'interval' => 'day',
+					'interval_count' => 1,
+				];
 			case 'weekly':
-				return [ 'interval' => 'week', 'interval_count' => 1 ];
+				return [
+					'interval' => 'week',
+					'interval_count' => 1,
+				];
 			case 'every_3_months':
-				return [ 'interval' => 'month', 'interval_count' => 3 ];
+				return [
+					'interval' => 'month',
+					'interval_count' => 3,
+				];
 			case 'every_6_months':
-				return [ 'interval' => 'month', 'interval_count' => 6 ];
+				return [
+					'interval' => 'month',
+					'interval_count' => 6,
+				];
 			case 'yearly':
-				return [ 'interval' => 'year', 'interval_count' => 1 ];
+				return [
+					'interval' => 'year',
+					'interval_count' => 1,
+				];
 			default:
-				return [ 'interval' => 'month', 'interval_count' => 1 ];
+				return [
+					'interval' => 'month',
+					'interval_count' => 1,
+				];
 		}
 	}
 
@@ -152,5 +170,4 @@ class Subscriptions {
 
 		return (int) ceil( ( $next - $now ) / DAY_IN_SECONDS );
 	}
-
 }

@@ -14,7 +14,7 @@
  * - human_date() - Get human-readable time difference
  * - is_date_expired() - Check if a date has expired
  * - days_ago() - Get days since a date
- * - date_range() - Get a predefined date range
+ * - get_date_range() - Get a predefined date range
  * - is_date_fresh() - Check if date is within threshold
  *
  * @package ArrayPress\DateUtils
@@ -145,7 +145,17 @@ if ( ! function_exists( 'days_ago' ) ) {
 	}
 }
 
-if ( ! function_exists( 'date_range' ) ) {
+/*
+ * Named get_date_range() rather than date_range().
+ *
+ * Strauss prefixes global function names, and it cannot tell a function
+ * reference from a string literal that happens to match one. A bare
+ * date_range() meant that any package prefixed alongside this one had its
+ * 'date_range' *array keys* rewritten too — wp-register-post-fields declares
+ * a field type by that name, and the whole metabox stopped registering with
+ * "Invalid field type". The get_ prefix removes the collision.
+ */
+if ( ! function_exists( 'get_date_range' ) ) {
 	/**
 	 * Get a predefined date range in UTC.
 	 *
@@ -153,7 +163,7 @@ if ( ! function_exists( 'date_range' ) ) {
 	 *
 	 * @return array{start: string, end: string} Start and end dates in UTC.
 	 */
-	function date_range( string $range ): array {
+	function get_date_range( string $range ): array {
 		return Dates::get_range( $range );
 	}
 }
@@ -190,7 +200,7 @@ if ( ! function_exists( 'add_days' ) ) {
 	}
 }
 
-if ( ! function_exists( 'date_range_options' ) ) {
+if ( ! function_exists( 'get_date_range_options' ) ) {
 	/**
 	 * Get date range options for dropdowns.
 	 *
@@ -198,7 +208,7 @@ if ( ! function_exists( 'date_range_options' ) ) {
 	 *
 	 * @return array Array of options in requested format.
 	 */
-	function date_range_options( bool $as_options = false ): array {
+	function get_date_range_options( bool $as_options = false ): array {
 		$ranges = Dates::get_range_options();
 
 		if ( ! $as_options ) {
@@ -210,7 +220,7 @@ if ( ! function_exists( 'date_range_options' ) ) {
 		foreach ( $ranges as $key => $value ) {
 			$options[] = [
 				'value' => $key,
-				'label' => $value
+				'label' => $value,
 			];
 		}
 

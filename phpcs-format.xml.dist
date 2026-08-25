@@ -1,48 +1,41 @@
 <?xml version="1.0"?>
-<ruleset name="Wp Date Utils (formatting)">
-    <description>Formatting and style. Separate from the lint: a clean lint does not mean a clean format check.</description>
-
-    <file>src</file>
-
-    <arg name="extensions" value="php"/>
-    <arg name="colors"/>
-    <arg value="sp"/>
-
-    <config name="installed_paths" value="vendor/wp-coding-standards/wpcs,vendor/phpcompatibility/php-compatibility,vendor/phpcompatibility/phpcompatibility-paragonie,vendor/phpcompatibility/phpcompatibility-wp,vendor/phpcsstandards/phpcsutils,vendor/phpcsstandards/phpcsextra"/>
+<ruleset name="wordpress-formatting">
+    <description>WordPress formatting, minus the rules that fight this codebase.</description>
 
     <rule ref="WordPress-Core">
+        <!-- PHP 8.2 is the floor. WPCS forbids short arrays for PHP 5.3
+             compatibility that stopped mattering years ago, and rewriting some
+             200 of them buys nothing. -->
         <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
         <exclude name="WordPress.PHP.YodaConditions"/>
-        <exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
-        <exclude name="Generic.WhiteSpace.ScopeIndent"/>
+
+        <!-- Would split every multi-argument call across separate lines: 242
+             call sites in one package, longer and no clearer. -->
         <exclude name="PEAR.Functions.FunctionCallSignature"/>
-        <exclude name="Squiz.Commenting.FileComment"/>
+
+        <!-- Short ternaries are used deliberately and read fine. -->
         <exclude name="Universal.Operators.DisallowShortTernary"/>
+
+        <!-- Assignment alignment is already consistent; the sniff disagrees
+             with itself across multi-line calls. -->
         <exclude name="Generic.Formatting.MultipleStatementAlignment"/>
         <exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
+
+        <!-- WordPress names files class-foo.php; PSR-4 autoloading requires
+             Foo.php. These are Composer libraries, so PSR-4 wins. A mismatch
+             there is silently unloadable, and CI checks it separately. -->
+        <exclude name="WordPress.Files.FileName"/>
+
+        <!-- Warns on parameters named $namespace, $object, $default. PHP does
+             not reserve any of these as parameter names, WordPress core uses
+             $namespace itself, and renaming them would make the signatures
+             worse to read, not better. -->
+        <exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames"/>
     </rule>
 
-    <rule ref="WordPress.Security.EscapeOutput">
-        <!--
-            Every one of these echoes the return value of an EDD markup helper:
-            EDD()->html->select(), ->product_dropdown(), ->date_field() and the
-            rest. They return escaped HTML by design, and escaping the result
-            again would print the tags instead of rendering the controls.
-            Rendering EDD's own fields is what this library is for, so the
-            exclusion is the whole file rather than a line list.
-        -->
-    </rule>
-
-
-    <rule ref="WordPress.Files.FileName">
-        <!--
-            Off, not waived. This is a Composer library autoloaded by PSR-4,
-            which requires the file to be named for the class it declares:
-            Exporters.php. WordPress wants class-exporters.php. The two rules
-            are mutually exclusive, and renaming the files to satisfy this one
-            would stop the autoloader finding them at all.
-        -->
-        <exclude-pattern>*</exclude-pattern>
-    </rule>
-
+    <file>src</file>
+    <arg name="extensions" value="php"/>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg value="sp"/>
 </ruleset>

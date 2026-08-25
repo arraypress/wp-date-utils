@@ -1,6 +1,6 @@
 {
   "name": "arraypress/wp-date-utils",
-  "description": "Lightweight WordPress date utilities with UTC storage, local display, and zero dependencies. Handles date ranges, business logic, subscriptions, and formatting.",
+  "description": "Dates for reporting: UTC ranges, presets, chart buckets and relative phrasing, plus the site timezone and formats.",
   "type": "library",
   "license": "GPL-2.0-or-later",
   "homepage": "https://github.com/arraypress/wp-date-utils",
@@ -15,11 +15,8 @@
   },
   "autoload": {
     "psr-4": {
-      "ArrayPress\\DateUtils\\": "src/"
-    },
-    "files": [
-      "src/Functions.php"
-    ]
+      "ArrayPress\\Dates\\": "src/"
+    }
   },
   "config": {
     "optimize-autoloader": true,
@@ -60,7 +57,7 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "ArrayPress\\DateUtils\\Tests\\": "tests/"
+      "ArrayPress\\Dates\\Tests\\": "tests/"
     },
     "exclude-from-classmap": [
       "/tests/bootstrap.php"
